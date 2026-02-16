@@ -1,4 +1,4 @@
-# RestauMap 🗺️🍽️
+# RestauMap
 A vibecoded app for big backs like me to stop losing that one restaurant from Instagram reels / Xiaohongshu post. Dump the link, let the AI pull out the info, and keep everything on a map so you actually go.
 
 ## Key Features

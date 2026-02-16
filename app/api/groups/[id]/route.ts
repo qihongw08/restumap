@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { GroupMember } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
 
@@ -11,7 +12,7 @@ async function getGroupAndCheckMember(groupId: string, userId: string) {
     },
   });
   if (!group) return null;
-  const isMember = group.members.some((m) => m.userId === userId);
+  const isMember = group.members.some((m: GroupMember) => m.userId === userId);
   if (!isMember) return null;
   return group;
 }
@@ -29,7 +30,7 @@ export async function GET(
   if (!group) {
     return NextResponse.json({ error: 'Group not found' }, { status: 404 });
   }
-  const currentMember = group.members.find((m) => m.userId === user.id);
+  const currentMember = group.members.find((m: GroupMember) => m.userId === user.id);
   return NextResponse.json({
     data: { ...group, currentMember: currentMember ? { role: currentMember.role } : null },
   });
