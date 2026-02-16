@@ -27,6 +27,9 @@ export type RestaurantWithDetails = Restaurant & {
   sourcePlatform?: string | null;
   rawCaption?: string | null;
   savedAt?: string | Date;
+  /** From UserRestaurant (per-user), merged by API */
+  status: RestaurantStatus;
+  isBlacklisted?: boolean;
 };
 
 export interface RestaurantFormData {

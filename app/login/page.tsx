@@ -16,7 +16,7 @@ export default async function LoginPage({
         {/* Illustration Section */}
         <div className="relative w-full max-w-[320px] aspect-square animate-in border-4 border-primary/20 rounded-[3rem] overflow-hidden bg-primary/5 shadow-2xl transition-all hover:border-primary/40">
           <Image
-            src="/onboarding.png"
+            src="/icon-main.png"
             alt="Welcome to RestauMap"
             fill
             className="object-cover transition-transform duration-1000 hover:scale-110"

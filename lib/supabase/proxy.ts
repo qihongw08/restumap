@@ -1,8 +1,22 @@
-import { createServerClient } from '@supabase/ssr';
-import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/auth/auth-code-error",
+  "/groups/join",
+];
+
+function isPublicPath(pathname: string): boolean {
+  return PUBLIC_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
 
 /**
  * Refreshes Supabase auth session and forwards cookies.
+ * Redirects to /login?next=... when not authenticated on protected paths.
  * Must run getClaims() (validates JWT) — never trust getSession() on server.
  * See: https://supabase.com/docs/guides/auth/server-side/nextjs
  */
@@ -18,19 +32,31 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  // Protect non-public, non-API page routes
+  const pathname = request.nextUrl.pathname;
+  if (
+    !pathname.startsWith("/api") &&
+    !pathname.startsWith("/_next") &&
+    !pathname.includes(".") &&
+    !isPublicPath(pathname) &&
+    !data?.claims?.sub
+  ) {
+    const loginUrl = new URL("/login", request.url);
+    const next = pathname + (request.nextUrl.search || "");
+    loginUrl.searchParams.set("next", encodeURIComponent(next));
+    return NextResponse.redirect(loginUrl);
+  }
 
   return supabaseResponse;
 }
