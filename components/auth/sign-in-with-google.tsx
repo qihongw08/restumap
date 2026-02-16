@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { createClient } from '@/lib/supabase/client';
-import { useTransition } from 'react';
+import { createClient } from "@/lib/supabase/client";
+import { useTransition } from "react";
 
-const AUTH_CALLBACK_PATH = '/auth/callback';
+const AUTH_CALLBACK_PATH = "/auth/callback";
 
 export function SignInWithGoogle({ next }: { next?: string }) {
   const [isPending, startTransition] = useTransition();
@@ -18,18 +18,18 @@ export function SignInWithGoogle({ next }: { next?: string }) {
       const redirectTo = `${window.location.origin}${callbackUrl}`;
 
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo,
           queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
+            access_type: "offline",
+            prompt: "consent",
           },
         },
       });
 
       if (error) {
-        console.error('Google sign-in error:', error);
+        console.error("Google sign-in error:", error);
         return;
       }
     });
@@ -60,7 +60,7 @@ export function SignInWithGoogle({ next }: { next?: string }) {
           d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
         />
       </svg>
-      {isPending ? 'Redirecting…' : 'Continue with Google'}
+      {isPending ? "Redirecting…" : "Continue with Google"}
     </button>
   );
 }

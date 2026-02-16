@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * OAuth callback (e.g. Google). Exchanges code for session and redirects.
@@ -8,11 +8,11 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get('code');
-  let next = searchParams.get('next') ?? '/';
+  const code = searchParams.get("code");
+  let next = searchParams.get("next") ?? "/";
 
-  if (!next.startsWith('/') || next.includes('//')) {
-    next = '/';
+  if (!next.startsWith("/") || next.includes("//")) {
+    next = "/";
   }
 
   if (code) {
@@ -20,18 +20,17 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+      const forwardedHost = request.headers.get("x-forwarded-host");
+      const forwardedProto =
+        request.headers.get("x-forwarded-proto") ?? "https";
       const baseUrl =
-        forwardedHost != null
-          ? `${forwardedProto}://${forwardedHost}`
-          : origin;
+        forwardedHost != null ? `${forwardedProto}://${forwardedHost}` : origin;
       return NextResponse.redirect(`${baseUrl}${next}`);
     }
   }
 
-  const forwardedHost = request.headers.get('x-forwarded-host');
-  const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https';
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
   const baseUrl =
     forwardedHost != null ? `${forwardedProto}://${forwardedHost}` : origin;
   return NextResponse.redirect(`${baseUrl}/auth/auth-code-error`);

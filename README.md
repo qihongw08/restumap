@@ -1,4 +1,5 @@
 # RestauMap
+
 A vibecoded app for big backs like me to stop losing that one restaurant from Instagram reels / Xiaohongshu post. Dump the link, let the AI pull out the info, and keep everything on a map so you actually go.
 
 ## Key Features
@@ -149,6 +150,3 @@ bun run type-check       # TypeScript check
 - **iOS (Safari):** Share → Add to Home Screen
 - **Android (Chrome):** Menu → Install app / Add to Home Screen
 - Add `icon-192.png` and `icon-512.png` to `public/` for full PWA icons (manifest references them). A basic service worker is registered for caching.
-
-
-
