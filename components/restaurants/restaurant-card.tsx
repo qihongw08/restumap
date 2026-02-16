@@ -18,10 +18,7 @@ interface RestaurantCardProps {
   onRemove?: (id: string, name: string) => void;
 }
 
-export function RestaurantCard({
-  restaurant,
-  onRemove,
-}: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, onRemove }: RestaurantCardProps) {
   const latestVisit = restaurant.visits[0];
   const statusLabel =
     RESTAURANT_STATUS_LABELS[restaurant.status] ?? restaurant.status;

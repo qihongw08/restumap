@@ -1,23 +1,45 @@
-import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/prisma';
-import { RestaurantDetail } from '@/components/restaurants/restaurant-detail';
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
+import { RestaurantDetail } from "@/components/restaurants/restaurant-detail";
 
 export default async function RestaurantDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   const { id } = await params;
-  const restaurant = await prisma.restaurant.findUnique({
-    where: { id },
+  const userRestaurant = await prisma.userRestaurant.findUnique({
+    where: { userId_restaurantId: { userId: user.id, restaurantId: id } },
     include: {
-      visits: { orderBy: { visitDate: 'desc' } },
-      photos: true,
-      imports: { orderBy: { importedAt: 'desc' }, take: 5 },
+      restaurant: {
+        include: {
+          visits: {
+            where: { userId: user.id },
+            orderBy: { visitDate: "desc" },
+          },
+          photos: { where: { userId: user.id } },
+        },
+      },
     },
   });
 
-  if (!restaurant) notFound();
+  if (!userRestaurant) notFound();
+
+  const restaurant = {
+    ...userRestaurant.restaurant,
+    status: userRestaurant.status,
+    isBlacklisted: userRestaurant.isBlacklisted,
+    blacklistReason: userRestaurant.blacklistReason,
+    blacklistedAt: userRestaurant.blacklistedAt,
+    sourceUrl: userRestaurant.sourceUrl,
+    sourcePlatform: userRestaurant.sourcePlatform,
+    rawCaption: userRestaurant.rawCaption,
+    savedAt: userRestaurant.savedAt,
+  };
 
   return (
     <div className="min-h-screen bg-background">

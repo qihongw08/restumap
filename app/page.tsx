@@ -1,10 +1,15 @@
+import { redirect } from "next/navigation";
 import { Nav } from "@/components/shared/nav";
 import { RestaurantList } from "@/components/restaurants/restaurant-list";
 import { DashboardHeader } from "@/components/home/dashboard-header";
+import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import { Plus, Download } from "lucide-react";
 
-export default function Home() {
+export default async function Home() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
   return (
     <div className="min-h-screen bg-background pb-32">
       <div className="h-32 w-full" /> {/* Spacer for fixed header */}

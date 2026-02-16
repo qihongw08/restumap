@@ -97,11 +97,11 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
 
         {/* Floating Title Info */}
         <div className="absolute bottom-6 left-6 right-6 space-y-2">
-          {restaurant.imports?.[0] && (
+          {(restaurant.sourceUrl ?? restaurant.savedAt) && (
             <div className="flex items-center gap-2">
-              {restaurant.imports[0].sourceUrl && (
+              {restaurant.sourceUrl && (
                 <a
-                  href={restaurant.imports[0].sourceUrl}
+                  href={restaurant.sourceUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-full bg-primary/20 backdrop-blur-md px-3 py-1 text-[10px] font-black tracking-widest text-primary border border-primary/30 hover:bg-primary/30"
@@ -109,11 +109,11 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
                   Imported from link
                 </a>
               )}
-              <span className="text-xs font-bold text-white/60">
-                {new Date(
-                  restaurant.imports[0].importedAt,
-                ).toLocaleDateString()}
-              </span>
+              {restaurant.savedAt && (
+                <span className="text-xs font-bold text-white/60">
+                  Saved {new Date(restaurant.savedAt).toLocaleDateString()}
+                </span>
+              )}
             </div>
           )}
           <h1 className="text-3xl font-black italic tracking-tighter text-white">

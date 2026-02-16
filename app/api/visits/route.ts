@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import {
   calculatePFRatio,
   isValidFullnessOrTaste,
@@ -7,6 +8,8 @@ import {
 } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await request.json();
 
@@ -43,9 +46,20 @@ export async function POST(request: NextRequest) {
       Number(pricePaid)
     );
 
+    const link = await prisma.userRestaurant.findUnique({
+      where: { userId_restaurantId: { userId: user.id, restaurantId } },
+    });
+    if (!link) {
+      return NextResponse.json(
+        { error: 'Restaurant not in your list' },
+        { status: 404 }
+      );
+    }
+
     const [visit] = await prisma.$transaction([
       prisma.visit.create({
         data: {
+          userId: user.id,
           restaurantId,
           visitDate: new Date(visitDate),
           fullnessScore: Number(fullnessScore),
@@ -57,8 +71,8 @@ export async function POST(request: NextRequest) {
           notes: notes ?? null,
         },
       }),
-      prisma.restaurant.update({
-        where: { id: restaurantId },
+      prisma.userRestaurant.update({
+        where: { userId_restaurantId: { userId: user.id, restaurantId } },
         data: { status: 'VISITED' },
       }),
     ]);

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import { getPlaceDetails } from '@/lib/places';
 import { geocodeAddress } from '@/lib/maps';
 
@@ -9,6 +10,8 @@ import { geocodeAddress } from '@/lib/maps';
  * We always create an Import row with sourceUrl and importedAt.
  */
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await request.json();
     const sourceUrl =
@@ -18,6 +21,10 @@ export async function POST(request: NextRequest) {
 
     const name = extracted.name ?? 'Unknown';
     const address = extracted.address ?? null;
+    const rawCaption =
+      typeof extracted.rawCaption === 'string' ? extracted.rawCaption : null;
+    const sourcePlatform =
+      typeof body.sourcePlatform === 'string' ? body.sourcePlatform : null;
     const cuisineTypes = Array.isArray(extracted.cuisineTypes)
       ? extracted.cuisineTypes
       : [];
@@ -107,20 +114,54 @@ export async function POST(request: NextRequest) {
       restaurantId = created.id;
     }
 
+    await prisma.userRestaurant.upsert({
+      where: { userId_restaurantId: { userId: user.id, restaurantId } },
+      create: {
+        userId: user.id,
+        restaurantId,
+        status: 'WANT_TO_GO',
+        sourceUrl: sourceUrl || null,
+        sourcePlatform,
+        rawCaption,
+      },
+      update: {
+        sourceUrl: sourceUrl ?? null,
+        sourcePlatform,
+        rawCaption,
+      },
+    });
+
     await prisma['import'].create({
       data: {
         sourceUrl: sourceUrl || null,
         restaurantId,
+        userId: user.id,
       },
     });
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
-      include: { visits: true },
+      include: {
+        visits: { where: { userId: user.id } },
+      },
+    });
+    const ur = await prisma.userRestaurant.findUnique({
+      where: { userId_restaurantId: { userId: user.id, restaurantId } },
     });
 
     return NextResponse.json(
-      { data: restaurant },
+      {
+        data: {
+          ...restaurant!,
+          status: ur!.status,
+          isBlacklisted: ur!.isBlacklisted,
+          blacklistReason: ur!.blacklistReason,
+          blacklistedAt: ur!.blacklistedAt,
+          sourceUrl: ur!.sourceUrl,
+          sourcePlatform: ur!.sourcePlatform,
+          rawCaption: ur!.rawCaption,
+        },
+      },
       { status: 201 }
     );
   } catch (error) {

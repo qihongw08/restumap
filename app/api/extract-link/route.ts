@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { extractRestaurantFromText } from "@/lib/groq";
 import { fetchWebpageContent, isFetchableUrl } from "@/lib/anchorbrowser";
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const raw = (body.text ?? body.url ?? body.caption ?? "").trim();

@@ -13,6 +13,8 @@ export type { Import };
 
 export type RestaurantWithVisits = Restaurant & {
   visits: Visit[];
+  status: RestaurantStatus;
+  isBlacklisted?: boolean;
 };
 
 export type RestaurantWithDetails = Restaurant & {
@@ -21,6 +23,10 @@ export type RestaurantWithDetails = Restaurant & {
   imports?: Import[];
   photoReferences: string[];
   openingHoursWeekdayText?: string[];
+  sourceUrl?: string | null;
+  sourcePlatform?: string | null;
+  rawCaption?: string | null;
+  savedAt?: string | Date;
 };
 
 export interface RestaurantFormData {

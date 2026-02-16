@@ -1,24 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getCurrentUser } from '@/lib/auth';
 import type { ApiResponse } from '@/types/api';
-import type { Restaurant } from '@prisma/client';
+import type { RestaurantStatus } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
     const excludeBlacklisted = searchParams.get('excludeBlacklisted') !== 'false';
 
-    const restaurants = await prisma.restaurant.findMany({
+    const userRestaurants = await prisma.userRestaurant.findMany({
       where: {
-        ...(status ? { status: status as Restaurant['status'] } : {}),
+        userId: user.id,
+        ...(status ? { status: status as RestaurantStatus } : {}),
         ...(excludeBlacklisted ? { isBlacklisted: false } : {}),
       },
-      orderBy: { createdAt: 'desc' },
-      include: { visits: { orderBy: { visitDate: 'desc' }, take: 5 } },
+      orderBy: { savedAt: 'desc' },
+      include: {
+        restaurant: {
+          include: {
+            visits: {
+              where: { userId: user.id },
+              orderBy: { visitDate: 'desc' },
+              take: 5,
+            },
+          },
+        },
+      },
     });
 
-    return NextResponse.json({ data: restaurants } satisfies ApiResponse<typeof restaurants>);
+    const data = userRestaurants.map((ur) => ({
+      ...ur.restaurant,
+      status: ur.status,
+      isBlacklisted: ur.isBlacklisted,
+      blacklistReason: ur.blacklistReason,
+      blacklistedAt: ur.blacklistedAt,
+      sourceUrl: ur.sourceUrl,
+      sourcePlatform: ur.sourcePlatform,
+      rawCaption: ur.rawCaption,
+    }));
+
+    return NextResponse.json({ data } satisfies ApiResponse<typeof data>);
   } catch (error) {
     console.error('Get restaurants error:', error);
     return NextResponse.json(
@@ -29,8 +56,13 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   try {
     const body = await request.json();
+    const status = (body.status as RestaurantStatus) ?? 'WANT_TO_GO';
 
     const restaurant = await prisma.restaurant.create({
       data: {
@@ -39,19 +71,42 @@ export async function POST(request: NextRequest) {
         formattedAddress: body.formattedAddress ?? null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
-        sourceUrl: body.sourceUrl ?? null,
-        sourcePlatform: body.sourcePlatform ?? null,
-        rawCaption: body.rawCaption ?? null,
         cuisineTypes: body.cuisineTypes ?? [],
         popularDishes: body.popularDishes ?? [],
         priceRange: body.priceRange ?? null,
         ambianceTags: body.ambianceTags ?? [],
-        status: body.status ?? 'WANT_TO_GO',
       },
     });
 
+    const userRestaurant = await prisma.userRestaurant.create({
+      data: {
+        userId: user.id,
+        restaurantId: restaurant.id,
+        status,
+        sourceUrl: body.sourceUrl ?? null,
+        sourcePlatform: body.sourcePlatform ?? null,
+        rawCaption: body.rawCaption ?? null,
+      },
+    });
+
+    const withVisits = await prisma.restaurant.findUnique({
+      where: { id: restaurant.id },
+      include: { visits: { orderBy: { visitDate: 'desc' }, take: 5 } },
+    });
+
     return NextResponse.json(
-      { data: restaurant },
+      {
+        data: {
+          ...withVisits!,
+          status: userRestaurant.status,
+          isBlacklisted: false,
+          blacklistReason: null,
+          blacklistedAt: null,
+          sourceUrl: userRestaurant.sourceUrl,
+          sourcePlatform: userRestaurant.sourcePlatform,
+          rawCaption: userRestaurant.rawCaption,
+        },
+      },
       { status: 201 }
     );
   } catch (error) {

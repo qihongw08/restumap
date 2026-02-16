@@ -11,7 +11,9 @@ export interface GeocodeResult {
 export async function geocodeAddress(
   address: string
 ): Promise<GeocodeResult | null> {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
+  const key =
+    process.env.GOOGLE_MAPS_API_KEY ??
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!key) return null;
 
   const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');

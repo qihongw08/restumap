@@ -1,26 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { searchPlaces } from '@/lib/places';
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { searchPlaces } from "@/lib/places";
 
 export async function POST(request: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
-    const name = body.name ?? '';
-    const addressOrRegion = body.addressOrRegion ?? '';
-    const query = [name, addressOrRegion].filter(Boolean).join(', ');
+    const name = body.name ?? "";
+    const addressOrRegion = body.addressOrRegion ?? "";
+    const query = [name, addressOrRegion].filter(Boolean).join(", ");
     if (!query.trim()) {
       return NextResponse.json(
-        { error: 'Missing name or addressOrRegion' },
-        { status: 400 }
+        { error: "Missing name or addressOrRegion" },
+        { status: 400 },
       );
     }
 
     const candidates = await searchPlaces(query);
     return NextResponse.json({ data: candidates });
   } catch (error) {
-    console.error('Places search error:', error);
+    console.error("Places search error:", error);
     return NextResponse.json(
-      { error: 'Failed to search places' },
-      { status: 500 }
+      { error: "Failed to search places" },
+      { status: 500 },
     );
   }
 }

@@ -14,11 +14,6 @@ model Restaurant {
   latitude         Float?
   longitude        Float?
 
-  // Source info
-  sourceUrl      String?  @map("source_url")
-  sourcePlatform String?  @map("source_platform") // instagram, rednote, tiktok
-  rawCaption     String?  @map("raw_caption")
-
   // Google Places (enriched from import)
   googlePlaceId    String?  @unique @map("google_place_id")
   photoReferences  String[] @default([]) @map("photo_references") // Up to 5 photo references from Place Details; use with /api/places/photo
@@ -30,23 +25,35 @@ model Restaurant {
   priceRange     String?  @map("price_range") // $, $$, $$$, $$$$
   ambianceTags   String[] @map("ambiance_tags")
 
-  // Status
-  status          RestaurantStatus @default(WANT_TO_GO)
-  isBlacklisted   Boolean  @default(false) @map("is_blacklisted")
-  blacklistReason String?  @map("blacklist_reason")
-  blacklistedAt   DateTime? @map("blacklisted_at")
-
   // Metadata
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  visits  Visit[]
-  photos  Photo[]
-  imports Import[]
+  userRestaurants UserRestaurant[]
+  visits         Visit[]
+  photos         Photo[]
+  imports        Import[]
   groupRestaurants GroupRestaurant[]
 
   @@map("restaurants")
+}
+model UserRestaurant {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  restaurantId   String   @map("restaurant_id")
+  status         RestaurantStatus @default(WANT_TO_GO)
+  isBlacklisted  Boolean  @default(false) @map("is_blacklisted")
+  blacklistReason String? @map("blacklist_reason")
+  blacklistedAt  DateTime? @map("blacklisted_at")
+  savedAt        DateTime @default(now()) @map("saved_at")
+  sourceUrl      String?  @map("source_url")
+  sourcePlatform String?  @map("source_platform") // instagram, rednote, tiktok
+  rawCaption     String?  @map("raw_caption")
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+  @@map("user_restaurants")
 }
 
 model Group {
@@ -101,6 +108,7 @@ model GroupInvite {
 
 model Import {
   id           String   @id @default(uuid())
+  userId       String   @map("user_id")
   sourceUrl    String?  @map("source_url")   // Original link user pasted (null if caption-only)
   importedAt   DateTime @default(now()) @map("imported_at")
   restaurantId String   @map("restaurant_id")
@@ -111,6 +119,7 @@ model Import {
 
 model Visit {
   id           String   @id @default(uuid())
+  userId       String   @map("user_id")
   restaurantId String   @map("restaurant_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -136,6 +145,7 @@ model Visit {
 
 model Photo {
   id           String   @id @default(uuid())
+  userId       String   @map("user_id")
   restaurantId String   @map("restaurant_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
