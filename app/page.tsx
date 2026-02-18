@@ -3,6 +3,7 @@ import { Nav } from "@/components/shared/nav";
 import { RestaurantList } from "@/components/restaurants/restaurant-list";
 import { DashboardHeader } from "@/components/home/dashboard-header";
 import { getCurrentUser } from "@/lib/auth";
+import { getDbUser } from "@/lib/sync-user";
 import Link from "next/link";
 import { Plus, Download } from "lucide-react";
 
@@ -10,15 +11,15 @@ export default async function Home() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const dbUser = await getDbUser(user.id);
+
   return (
     <div className="min-h-screen bg-background pb-32">
-      <div className="h-32 w-full" /> {/* Spacer for fixed header */}
+      <div className="h-32 w-full" />
       <main className="mx-auto max-w-lg px-6">
-        {/* Dashboard Header */}
         <div className="mb-10 space-y-6">
-          <DashboardHeader />
+          <DashboardHeader user={dbUser} isLoggedIn />
 
-          {/* Quick Actions */}
           <div className="flex gap-3">
             <Link
               href="/restaurants/new"
@@ -35,7 +36,6 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* List Section */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-black italic tracking-tight text-foreground">

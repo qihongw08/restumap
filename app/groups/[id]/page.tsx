@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Nav } from '@/components/shared/nav';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { Nav } from "@/components/shared/nav";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
 import {
   ChevronRight,
   Users,
@@ -14,9 +15,18 @@ import {
   Copy,
   Trash2,
   Loader2,
-} from 'lucide-react';
+} from "lucide-react";
 
-type GroupMember = { id: string; userId: string; role: string };
+type MemberUser = {
+  username: string | null;
+  avatarUrl?: string;
+} | null;
+type GroupMember = {
+  id: string;
+  userId: string;
+  role: string;
+  user: MemberUser;
+};
 type Restaurant = {
   id: string;
   name: string;
@@ -33,6 +43,7 @@ type GroupData = {
   name: string;
   members: GroupMember[];
   groupRestaurants: GroupRestaurant[];
+  currentUserId?: string | null;
   currentMember: { role: string } | null;
 };
 
@@ -49,6 +60,7 @@ export default function GroupDetailPage({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [addRestaurantOpen, setAddRestaurantOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
@@ -62,17 +74,17 @@ export default function GroupDetailPage({
     try {
       const res = await fetch(`/api/groups/${groupId}`);
       if (res.status === 401) {
-        router.push('/login');
+        router.push("/login");
         return;
       }
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? 'Failed to load group');
+        throw new Error(data.error ?? "Failed to load group");
       }
       const json = await res.json();
       setGroup(json.data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      setError(e instanceof Error ? e.message : "Unknown error");
       setGroup(null);
     } finally {
       setLoading(false);
@@ -83,19 +95,21 @@ export default function GroupDetailPage({
     if (groupId) fetchGroup();
   }, [groupId, fetchGroup]);
 
-  const isOwner = group?.currentMember?.role === 'owner';
+  const isOwner = group?.currentMember?.role === "owner";
 
   const handleCreateInvite = async () => {
     if (!groupId) return;
     setInviteLoading(true);
     try {
-      const res = await fetch(`/api/groups/${groupId}/invites`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to create invite');
+      const res = await fetch(`/api/groups/${groupId}/invites`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to create invite");
       const json = await res.json();
-      const base = typeof window !== 'undefined' ? window.location.origin : '';
+      const base = typeof window !== "undefined" ? window.location.origin : "";
       setInviteUrl(`${base}${json.data.joinUrl}`);
     } catch {
-      setError('Could not create invite link');
+      setError("Could not create invite link");
     } finally {
       setInviteLoading(false);
     }
@@ -109,16 +123,16 @@ export default function GroupDetailPage({
   };
 
   const handleRemoveRestaurant = async (restaurantId: string) => {
-    if (!groupId || !confirm('Remove this restaurant from the group?')) return;
+    if (!groupId || !confirm("Remove this restaurant from the group?")) return;
     try {
       const res = await fetch(
         `/api/groups/${groupId}/restaurants/${restaurantId}`,
-        { method: 'DELETE' }
+        { method: "DELETE" },
       );
-      if (!res.ok) throw new Error('Failed to remove');
+      if (!res.ok) throw new Error("Failed to remove");
       fetchGroup();
     } catch {
-      setError('Could not remove restaurant');
+      setError("Could not remove restaurant");
     }
   };
 
@@ -135,7 +149,10 @@ export default function GroupDetailPage({
       <div className="min-h-screen bg-background pb-32">
         <div className="mx-auto max-w-lg px-6 py-12">
           <p className="font-bold text-destructive">{error}</p>
-          <Link href="/groups" className="mt-4 inline-block text-sm font-bold text-primary">
+          <Link
+            href="/groups"
+            className="mt-4 inline-block text-sm font-bold text-primary"
+          >
             ← Back to groups
           </Link>
         </div>
@@ -162,9 +179,10 @@ export default function GroupDetailPage({
             </h1>
             <p className="mt-1 flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-muted-foreground">
               <Users className="h-3.5 w-3.5" />
-              {group.members.length} member{group.members.length !== 1 ? 's' : ''} ·{' '}
+              {group.members.length} member
+              {group.members.length !== 1 ? "s" : ""} ·{" "}
               {group.groupRestaurants.length} restaurant
-              {group.groupRestaurants.length !== 1 ? 's' : ''}
+              {group.groupRestaurants.length !== 1 ? "s" : ""}
             </p>
           </div>
           {isOwner && (
@@ -182,7 +200,7 @@ export default function GroupDetailPage({
                     onClick={handleCopyInvite}
                     className="shrink-0"
                   >
-                    {copySuccess ? 'Copied!' : <Copy className="h-4 w-4" />}
+                    {copySuccess ? "Copied!" : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               ) : (
@@ -205,6 +223,42 @@ export default function GroupDetailPage({
           )}
         </div>
 
+        {/* Members: inline on desktop, button to open modal on mobile */}
+        <div className="mb-6 hidden md:block">
+          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground mb-3">
+            Members
+          </h2>
+          <MembersList
+            members={group.members}
+            currentUserId={group.currentUserId ?? null}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMembersOpen(true)}
+          className="mb-6 flex w-full items-center justify-between rounded-xl border-2 border-border bg-muted/20 px-4 py-3 md:hidden hover:border-primary/40 hover:bg-muted/30 transition-colors"
+          aria-label="Show members"
+        >
+          <span className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+            Members
+          </span>
+          <span className="text-xs font-bold text-muted-foreground">
+            {group.members.length} · Tap to view
+          </span>
+        </button>
+
+        <Modal
+          open={membersOpen}
+          onClose={() => setMembersOpen(false)}
+          title="Members"
+        >
+          <MembersList
+            members={group.members}
+            currentUserId={group.currentUserId ?? null}
+          />
+        </Modal>
+
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
             Restaurants
@@ -221,7 +275,9 @@ export default function GroupDetailPage({
 
         {group.groupRestaurants.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
-            <p className="text-sm font-bold text-muted-foreground">No restaurants yet</p>
+            <p className="text-sm font-bold text-muted-foreground">
+              No restaurants yet
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Add restaurants from your list to share with the group.
             </p>
@@ -243,7 +299,9 @@ export default function GroupDetailPage({
                     href={`/restaurants/${gr.restaurant.id}`}
                     className="min-w-0 flex-1"
                   >
-                    <p className="font-bold text-foreground truncate">{gr.restaurant.name}</p>
+                    <p className="font-bold text-foreground truncate">
+                      {gr.restaurant.name}
+                    </p>
                     {gr.restaurant.formattedAddress && (
                       <p className="mt-0.5 truncate text-xs text-muted-foreground">
                         {gr.restaurant.formattedAddress}
@@ -271,10 +329,68 @@ export default function GroupDetailPage({
         open={addRestaurantOpen}
         onClose={() => setAddRestaurantOpen(false)}
         groupId={groupId}
-        existingRestaurantIds={group.groupRestaurants.map((gr) => gr.restaurantId)}
+        existingRestaurantIds={group.groupRestaurants.map(
+          (gr) => gr.restaurantId,
+        )}
         onAdded={fetchGroup}
       />
     </div>
+  );
+}
+
+function MembersList({
+  members,
+  currentUserId,
+}: {
+  members: GroupMember[];
+  currentUserId: string | null;
+}) {
+  const sorted = [...members].sort((a, b) =>
+    a.role === "owner" ? -1 : b.role === "owner" ? 1 : 0,
+  );
+  return (
+    <ul className="space-y-2">
+      {sorted.map((m) => {
+        const displayName =
+          m.userId === currentUserId ? "You" : (m.user?.username ?? "Member");
+        const avatarUrl = m.user?.avatarUrl;
+        return (
+          <li
+            key={m.id}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-2.5"
+          >
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              {avatarUrl ? (
+                <Image
+                  src={avatarUrl}
+                  alt=""
+                  width={36}
+                  height={36}
+                  className="size-9 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                  aria-hidden
+                >
+                  <Users className="h-4 w-4" />
+                </div>
+              )}
+              <span className="truncate text-sm font-medium text-foreground">
+                {displayName}
+              </span>
+            </div>
+            <span
+              className={`shrink-0 text-xs font-bold uppercase tracking-wider ${
+                m.role === "owner" ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              {m.role}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -291,31 +407,35 @@ function AddRestaurantModal({
   existingRestaurantIds: string[];
   onAdded: () => void;
 }) {
-  const [restaurants, setRestaurants] = useState<{ id: string; name: string }[]>([]);
+  const [restaurants, setRestaurants] = useState<
+    { id: string; name: string }[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch('/api/restaurants')
+    fetch("/api/restaurants")
       .then((r) => r.json())
       .then((json) => setRestaurants(json.data ?? []))
       .catch(() => setRestaurants([]))
       .finally(() => setLoading(false));
   }, [open]);
 
-  const available = restaurants.filter((r) => !existingRestaurantIds.includes(r.id));
+  const available = restaurants.filter(
+    (r) => !existingRestaurantIds.includes(r.id),
+  );
 
   const handleAdd = async (restaurantId: string) => {
     setAddingId(restaurantId);
     try {
       const res = await fetch(`/api/groups/${groupId}/restaurants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restaurantId }),
       });
-      if (!res.ok) throw new Error('Failed to add');
+      if (!res.ok) throw new Error("Failed to add");
       onAdded();
       onClose();
     } catch {

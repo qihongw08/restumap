@@ -1,14 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import type { GroupMember } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import type { GroupMember } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 async function getGroupAndCheckMember(groupId: string, userId: string) {
   const group = await prisma.group.findUnique({
     where: { id: groupId },
     include: {
       members: true,
-      groupRestaurants: { include: { restaurant: true }, orderBy: { addedAt: 'desc' } },
+      groupRestaurants: {
+        include: { restaurant: true },
+        orderBy: { addedAt: "desc" },
+      },
     },
   });
   if (!group) return null;
@@ -19,65 +22,95 @@ async function getGroupAndCheckMember(groupId: string, userId: string) {
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
   const group = await getGroupAndCheckMember(id, user.id);
   if (!group) {
-    return NextResponse.json({ error: 'Group not found' }, { status: 404 });
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
-  const currentMember = group.members.find((m: GroupMember) => m.userId === user.id);
+  const currentMember = group.members.find(
+    (m: GroupMember) => m.userId === user.id,
+  );
+  const memberIds = group.members.map((m) => m.userId);
+  const users =
+    memberIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: memberIds } },
+          select: { id: true, username: true, avatarUrl: true },
+        })
+      : [];
+  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+  const membersWithUser = group.members.map((m) => ({
+    id: m.id,
+    userId: m.userId,
+    role: m.role,
+    user: userMap[m.userId]
+      ? {
+          username: userMap[m.userId].username,
+          avatarUrl: userMap[m.userId].avatarUrl ?? undefined,
+        }
+      : null,
+  }));
   return NextResponse.json({
-    data: { ...group, currentMember: currentMember ? { role: currentMember.role } : null },
+    data: {
+      ...group,
+      members: membersWithUser,
+      currentUserId: user.id,
+      currentMember: currentMember ? { role: currentMember.role } : null,
+    },
   });
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
   const member = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId: id, userId: user.id } },
   });
-  if (!member || member.role !== 'owner') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!member || member.role !== "owner") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await request.json();
-  const name = typeof body.name === 'string' ? body.name.trim() : undefined;
+  const name = typeof body.name === "string" ? body.name.trim() : undefined;
   if (!name) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
   const group = await prisma.group.update({
     where: { id },
     data: { name },
-    include: { members: true, groupRestaurants: { include: { restaurant: true } } },
+    include: {
+      members: true,
+      groupRestaurants: { include: { restaurant: true } },
+    },
   });
   return NextResponse.json({ data: group });
 }
 
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const { id } = await params;
   const member = await prisma.groupMember.findUnique({
     where: { groupId_userId: { groupId: id, userId: user.id } },
   });
-  if (!member || member.role !== 'owner') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!member || member.role !== "owner") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   await prisma.group.delete({ where: { id } });
   return NextResponse.json({ data: { id } });

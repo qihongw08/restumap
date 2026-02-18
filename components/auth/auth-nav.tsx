@@ -20,9 +20,6 @@ export function AuthNav() {
   if (user) {
     return (
       <div className="flex items-center gap-3">
-        <span className="max-w-[120px] truncate text-xs text-muted-foreground" title={user.email}>
-          {user.email}
-        </span>
         <form action="/auth/signout" method="post">
           <button
             type="submit"

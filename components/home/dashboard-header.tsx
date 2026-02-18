@@ -1,38 +1,31 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
 
-function getDisplayName(user: User | null): string {
-  if (!user) return 'Foodie';
-  const meta = user.user_metadata;
-  if (meta?.full_name) return meta.full_name;
-  if (meta?.name) return meta.name;
-  if (user.email) return user.email.split('@')[0];
-  return 'Foodie';
+export type DbUser = {
+  id: string;
+  username: string | null;
+  avatarUrl: string | null;
+} | null;
+
+export interface DashboardHeaderProps {
+  user: DbUser;
+  isLoggedIn?: boolean;
 }
 
-function getAvatarUrl(user: User | null): string | null {
-  if (!user?.user_metadata) return null;
-  return user.user_metadata.avatar_url ?? user.user_metadata.picture ?? null;
+function getDisplayName(user: DbUser): string {
+  if (!user) return "Foodie";
+  return user.username ?? "Foodie";
 }
 
-export function DashboardHeader() {
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: u } }) => setUser(u));
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null));
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const avatarUrl = getAvatarUrl(user);
+export function DashboardHeader(
+  props: DashboardHeaderProps,
+): React.ReactElement {
+  const { user, isLoggedIn = false } = props;
   const displayName = getDisplayName(user);
+  const avatarUrl = user?.avatarUrl ?? null;
 
   return (
     <div className="flex items-center justify-between gap-4">
@@ -42,11 +35,12 @@ export function DashboardHeader() {
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <div className="h-14 w-14 rounded-2xl border-2 border-primary bg-primary/10 flex items-center justify-center overflow-hidden shadow-lg shadow-primary/20">
           {avatarUrl ? (
-            <img
+            <Image
               src={avatarUrl}
               alt=""
+              width={56}
+              height={56}
               className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
             />
           ) : (
             <span className="text-xl font-black text-primary">
@@ -54,14 +48,8 @@ export function DashboardHeader() {
             </span>
           )}
         </div>
-        {user ? (
+        {user || isLoggedIn ? (
           <div className="flex items-center gap-3">
-            <span
-              className="max-w-[140px] truncate text-xs text-muted-foreground"
-              title={user.email ?? ''}
-            >
-              {user.email}
-            </span>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"

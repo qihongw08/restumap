@@ -1,4 +1,4 @@
-const CACHE_NAME = 'restumap-v3';
+const CACHE_NAME = 'restaumap-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

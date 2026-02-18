@@ -5,13 +5,19 @@ import { defineConfig } from "prisma/config";
 
 config({ path: ".env.local" });
 
+let migrationUrl = process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"];
+
+// In dev, run migrations in the dev Postgres schema (same as app runtime in lib/prisma.ts)
+if (process.env["NODE_ENV"] !== "production" && migrationUrl) {
+  migrationUrl = `${migrationUrl}?schema=restaumap-dev`;
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    // In Prisma 7, schema is configured via PrismaPg adapter option, not URL parameter
-    url: process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
+    url: migrationUrl,
   },
 });
