@@ -1,10 +1,10 @@
 import type {
   Restaurant as PrismaRestaurant,
-  Visit,
   Photo,
   Import,
   RestaurantStatus,
 } from "@prisma/client";
+import type { VisitWithPhotos } from "@/types/visit";
 
 export type { RestaurantStatus };
 
@@ -12,13 +12,14 @@ export type Restaurant = PrismaRestaurant;
 export type { Import };
 
 export type RestaurantWithVisits = Restaurant & {
-  visits: Visit[];
+  visits: VisitWithPhotos[];
   status: RestaurantStatus;
   isBlacklisted?: boolean;
+  sourceUrl?: string | null;
 };
 
 export type RestaurantWithDetails = Restaurant & {
-  visits: Visit[];
+  visits: VisitWithPhotos[];
   photos: Photo[];
   imports?: Import[];
   photoReferences: string[];

@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
               where: { userId: user.id },
               orderBy: { visitDate: 'desc' },
               take: 5,
+              include: { photos: true },
             },
           },
         },

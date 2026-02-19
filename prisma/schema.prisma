@@ -77,6 +77,7 @@ model Group {
   members          GroupMember[]
   groupRestaurants GroupRestaurant[]
   invites          GroupInvite[]
+  visits           Visit[]
 
   @@map("groups")
 }
@@ -133,21 +134,19 @@ model Visit {
   id           String     @id @default(uuid())
   userId       String     @map("user_id")
   restaurantId String     @map("restaurant_id")
+  groupId      String?    @map("group_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  group        Group?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   visitDate DateTime @map("visit_date")
 
-  // PF Ratio components
-  fullnessScore Int   @map("fullness_score") // 1-10
-  tasteScore    Int   @map("taste_score") // 1-10
+  fullnessScore Int   @map("fullness_score")
+  tasteScore    Int   @map("taste_score")
   pricePaid     Float @map("price_paid")
-  pfRatio       Float @map("pf_ratio") // Calculated: (fullness * taste) / price
-
-  // Additional ratings
-  serviceRating  Int? @map("service_rating") // 1-5
-  ambianceRating Int? @map("ambiance_rating") // 1-5
 
   notes String?
+
+  photos Photo[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -159,7 +158,9 @@ model Photo {
   id           String     @id @default(uuid())
   userId       String     @map("user_id")
   restaurantId String     @map("restaurant_id")
+  visitId      String?    @map("visit_id")
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  visit        Visit?     @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
   url        String
   caption    String?

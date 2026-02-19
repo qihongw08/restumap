@@ -15,7 +15,14 @@ import {
   Copy,
   Trash2,
   Loader2,
+  ExternalLink,
+  UtensilsCrossed,
+  Sparkles,
+  Calendar,
+  ImageIcon,
 } from "lucide-react";
+import { format } from "date-fns";
+import { calculatePFRatio, formatPFRatio } from "@/lib/utils";
 
 type MemberUser = {
   username: string | null;
@@ -32,17 +39,35 @@ type Restaurant = {
   name: string;
   formattedAddress?: string | null;
   status?: string;
+  cuisineTypes: string[];
+  priceRange: string | null;
+  ambianceTags: string[];
 };
 type GroupRestaurant = {
   id: string;
   restaurantId: string;
   restaurant: Restaurant;
+  sourceUrl?: string | null;
+};
+type GroupVisit = {
+  id: string;
+  userId: string;
+  restaurantId: string;
+  visitDate: string;
+  fullnessScore: number;
+  tasteScore: number;
+  pricePaid: number;
+  notes: string | null;
+  photos: { url: string }[];
+  restaurant: { id: string; name: string };
+  user: { username: string | null; avatarUrl?: string } | null;
 };
 type GroupData = {
   id: string;
   name: string;
   members: GroupMember[];
   groupRestaurants: GroupRestaurant[];
+  groupVisits?: GroupVisit[];
   currentUserId?: string | null;
   currentMember: { role: string } | null;
 };
@@ -62,6 +87,9 @@ export default function GroupDetailPage({
   const [addRestaurantOpen, setAddRestaurantOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [activeTab, setActiveTab] = useState<"restaurants" | "memory-lane">(
+    "restaurants",
+  );
 
   useEffect(() => {
     params.then((p) => setGroupId(p.id));
@@ -259,21 +287,54 @@ export default function GroupDetailPage({
           />
         </Modal>
 
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-            Restaurants
-          </h2>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setAddRestaurantOpen(true)}
-            className="gap-2"
+        {/* Tabs: Restaurants | Memory lane */}
+        <div className="mb-4 flex rounded-xl bg-muted/40 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab("restaurants")}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-black uppercase tracking-widest transition-colors ${
+              activeTab === "restaurants"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
           >
-            <Plus className="h-4 w-4" /> Add
-          </Button>
+            Restaurants
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("memory-lane")}
+            className={`flex-1 rounded-lg py-2.5 text-sm font-black uppercase tracking-widest transition-colors ${
+              activeTab === "memory-lane"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Memory lane
+          </button>
         </div>
 
-        {group.groupRestaurants.length === 0 ? (
+        {activeTab === "memory-lane" ? (
+          <MemoryLaneSection
+            visits={group.groupVisits ?? []}
+            currentUserId={group.currentUserId ?? null}
+          />
+        ) : (
+          <>
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
+                Restaurants
+              </h2>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setAddRestaurantOpen(true)}
+                className="gap-2"
+              >
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+
+            {group.groupRestaurants.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
             <p className="text-sm font-bold text-muted-foreground">
               No restaurants yet
@@ -292,35 +353,116 @@ export default function GroupDetailPage({
           </div>
         ) : (
           <ul className="space-y-3">
-            {group.groupRestaurants.map((gr) => (
-              <li key={gr.id}>
-                <div className="flex items-center gap-3 rounded-2xl border-2 border-border bg-background p-4 shadow-sm">
-                  <Link
-                    href={`/restaurants/${gr.restaurant.id}`}
-                    className="min-w-0 flex-1"
-                  >
-                    <p className="font-bold text-foreground truncate">
-                      {gr.restaurant.name}
-                    </p>
-                    {gr.restaurant.formattedAddress && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {gr.restaurant.formattedAddress}
+            {group.groupRestaurants.map((gr) => {
+              const r = gr.restaurant;
+              const cuisines =
+                r.cuisineTypes?.length > 0
+                  ? r.cuisineTypes.slice(0, 3).join(", ")
+                  : null;
+              const ambience =
+                r.ambianceTags?.length > 0
+                  ? r.ambianceTags.slice(0, 3).join(" · ")
+                  : null;
+              const hasMeta = cuisines || r.priceRange || ambience;
+              return (
+                <li key={gr.id}>
+                  <div className="flex items-start gap-3 rounded-2xl border-2 border-border bg-background p-4 shadow-sm">
+                    <Link
+                      href={`/restaurants/${r.id}`}
+                      className="min-w-0 flex-1"
+                    >
+                      <p className="font-bold text-foreground truncate">
+                        {r.name}
                       </p>
-                    )}
-                  </Link>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="shrink-0 size-9 p-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleRemoveRestaurant(gr.restaurantId)}
-                    aria-label="Remove from group"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+                        {r.formattedAddress && (
+                          <span className="truncate text-muted-foreground">
+                            {r.formattedAddress}
+                          </span>
+                        )}
+                        {r.formattedAddress && (hasMeta || gr.sourceUrl) && (
+                          <span className="text-muted-foreground/60">·</span>
+                        )}
+                        {cuisines && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-primary/15 px-2 py-0.5 font-medium text-primary">
+                            <UtensilsCrossed className="h-3 w-3" />
+                            {cuisines}
+                          </span>
+                        )}
+                        {r.priceRange && (
+                          <span className="rounded-md bg-amber-500/15 px-2 py-0.5 font-medium text-amber-700 dark:text-amber-400">
+                            {r.priceRange}
+                          </span>
+                        )}
+                        {ambience && (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-muted-foreground">
+                            <Sparkles className="h-3 w-3" />
+                            {ambience}
+                          </span>
+                        )}
+                        {gr.sourceUrl && (
+                          <>
+                            {(hasMeta || r.formattedAddress) && (
+                              <span className="text-muted-foreground/60">
+                                ·
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              role="link"
+                              className="inline-flex items-center gap-1 truncate font-medium text-primary hover:underline text-left"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                window.open(
+                                  gr.sourceUrl!,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(
+                                    gr.sourceUrl!,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
+                                }
+                              }}
+                            >
+                              <ExternalLink className="h-3 w-3 shrink-0" />
+                              {(() => {
+                                try {
+                                  return new URL(
+                                    gr.sourceUrl!,
+                                  ).hostname.replace(/^www\./, "");
+                                } catch {
+                                  return "Source";
+                                }
+                              })()}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="shrink-0 size-9 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleRemoveRestaurant(gr.restaurantId)}
+                      aria-label="Remove from group"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
+            )}
+          </>
         )}
       </main>
       <Nav />
@@ -335,6 +477,124 @@ export default function GroupDetailPage({
         onAdded={fetchGroup}
       />
     </div>
+  );
+}
+
+function MemoryLaneSection({
+  visits,
+  currentUserId,
+}: {
+  visits: GroupVisit[];
+  currentUserId: string | null;
+}) {
+  if (visits.length === 0) {
+    return (
+      <div className="rounded-2xl border-2 border-dashed border-muted bg-muted/20 p-8 text-center">
+        <p className="text-sm font-bold text-muted-foreground">
+          No group visits yet
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          When someone logs a visit and tags this group, it will show here.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <ul className="space-y-4">
+      {visits.map((v) => {
+        const fullness = Number(v.fullnessScore);
+        const taste = Number(v.tasteScore);
+        const price = Number(v.pricePaid);
+        const pfRatio = calculatePFRatio(fullness, taste, price);
+        const displayName =
+          v.userId === currentUserId
+            ? "You"
+            : (v.user?.username ?? "Someone");
+        const photos = v.photos ?? [];
+        return (
+          <li
+            key={v.id}
+            className="rounded-xl border-2 border-border bg-card overflow-hidden"
+          >
+            <div className="flex items-center gap-3 px-4 py-3 bg-muted/30 border-b border-border">
+              {v.user?.avatarUrl ? (
+                <Image
+                  src={v.user.avatarUrl}
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-foreground truncate">
+                  {displayName}
+                </p>
+                <Link
+                  href={`/restaurants/${v.restaurant.id}`}
+                  className="text-xs font-medium text-primary hover:underline truncate block"
+                >
+                  {v.restaurant.name}
+                </Link>
+              </div>
+              <div className="text-right shrink-0">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {format(new Date(v.visitDate), "MMM d, yyyy")}
+                </div>
+                <p className="text-sm font-black italic text-primary">
+                  PF {formatPFRatio(pfRatio)}
+                </p>
+              </div>
+            </div>
+            {photos.length > 0 ? (
+              <div className="flex gap-2 p-3 flex-wrap">
+                {photos.map((photo) => (
+                  <a
+                    key={photo.url}
+                    href={photo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-lg overflow-hidden border border-border bg-muted shrink-0 focus:ring-2 focus:ring-primary/30 focus:outline-none"
+                  >
+                    {process.env.NEXT_PUBLIC_R2_PUBLIC_URL &&
+                    photo.url.startsWith(
+                      process.env.NEXT_PUBLIC_R2_PUBLIC_URL,
+                    ) ? (
+                      <Image
+                        src={photo.url}
+                        alt=""
+                        width={72}
+                        height={72}
+                        className="w-[72px] h-[72px] object-cover"
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element -- Fallback for non-R2 URLs */
+                      <img
+                        src={photo.url}
+                        alt=""
+                        width={72}
+                        height={72}
+                        className="w-[72px] h-[72px] object-cover"
+                      />
+                    )}
+                  </a>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground">
+                <ImageIcon className="h-3.5 w-3.5" />
+                No photos
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

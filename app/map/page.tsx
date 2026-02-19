@@ -27,6 +27,7 @@ export default async function MapPage({
             where: { userId: user.id },
             orderBy: { visitDate: "desc" },
             take: 1,
+            include: { photos: true },
           },
           photos: { where: { userId: user.id } },
         },

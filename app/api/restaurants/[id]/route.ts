@@ -19,6 +19,7 @@ export async function GET(
             visits: {
               where: { userId: user.id },
               orderBy: { visitDate: 'desc' },
+              include: { photos: true },
             },
             photos: { where: { userId: user.id } },
           },
@@ -26,21 +27,67 @@ export async function GET(
       },
     });
 
-    if (!userRestaurant) {
+    if (userRestaurant) {
+      const { restaurant } = userRestaurant;
+      const data = {
+        ...restaurant,
+        status: userRestaurant.status,
+        isBlacklisted: userRestaurant.isBlacklisted,
+        blacklistReason: userRestaurant.blacklistReason,
+        blacklistedAt: userRestaurant.blacklistedAt,
+        sourceUrl: userRestaurant.sourceUrl,
+        sourcePlatform: userRestaurant.sourcePlatform,
+        rawCaption: userRestaurant.rawCaption,
+        savedAt: userRestaurant.savedAt,
+      };
+      return NextResponse.json({ data });
+    }
+
+    const inGroup = await prisma.groupRestaurant.findFirst({
+      where: {
+        restaurantId: id,
+        group: { members: { some: { userId: user.id } } },
+      },
+    });
+    if (!inGroup) {
       return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
     }
 
-    const { restaurant } = userRestaurant;
+    const adderLink = await prisma.userRestaurant.findUnique({
+      where: {
+        userId_restaurantId: {
+          userId: inGroup.addedById,
+          restaurantId: id,
+        },
+      },
+      select: { sourceUrl: true, sourcePlatform: true, rawCaption: true },
+    });
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id },
+      include: {
+        visits: {
+          where: { userId: user.id },
+          orderBy: { visitDate: 'desc' },
+          include: { photos: true },
+        },
+        photos: { where: { userId: user.id } },
+      },
+    });
+    if (!restaurant) {
+      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+    }
+
     const data = {
       ...restaurant,
-      status: userRestaurant.status,
-      isBlacklisted: userRestaurant.isBlacklisted,
-      blacklistReason: userRestaurant.blacklistReason,
-      blacklistedAt: userRestaurant.blacklistedAt,
-      sourceUrl: userRestaurant.sourceUrl,
-      sourcePlatform: userRestaurant.sourcePlatform,
-      rawCaption: userRestaurant.rawCaption,
-      savedAt: userRestaurant.savedAt,
+      status: 'WANT_TO_GO' as RestaurantStatus,
+      isBlacklisted: false,
+      blacklistReason: null,
+      blacklistedAt: null,
+      sourceUrl: adderLink?.sourceUrl ?? null,
+      sourcePlatform: adderLink?.sourcePlatform ?? null,
+      rawCaption: adderLink?.rawCaption ?? null,
+      savedAt: null,
     };
     return NextResponse.json({ data });
   } catch (error) {

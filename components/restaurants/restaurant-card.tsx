@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { RESTAURANT_STATUS_LABELS } from "@/lib/constants";
 import type { RestaurantWithVisits } from "@/types/restaurant";
-import { formatPFRatio } from "@/lib/utils";
-import { MapPin, ChevronRight, ChevronLeft } from "lucide-react";
+import { formatPFRatio, calculatePFRatio } from "@/lib/utils";
+import { MapPin, ChevronRight, ChevronLeft, Sparkles, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
@@ -24,6 +24,8 @@ export function RestaurantCard({ restaurant, onRemove }: RestaurantCardProps) {
     RESTAURANT_STATUS_LABELS[restaurant.status] ?? restaurant.status;
 
   const r = restaurant as Record<string, unknown>;
+  const ambianceTags = Array.isArray(r.ambianceTags) ? (r.ambianceTags as string[]) : [];
+  const sourceUrl = typeof r.sourceUrl === "string" ? r.sourceUrl : null;
   const photoRefs = Array.isArray(r.photoReferences)
     ? (r.photoReferences as string[])
     : [];
@@ -127,22 +129,68 @@ export function RestaurantCard({ restaurant, onRemove }: RestaurantCardProps) {
             </span>
           </div>
 
-          <div className="mt-6 space-y-4">
-            {restaurant.formattedAddress && (
-              <p className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="truncate">{restaurant.formattedAddress}</span>
-              </p>
-            )}
+          <div className="mt-5 space-y-3">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs">
+              {restaurant.formattedAddress && (
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                  <span className="truncate">{restaurant.formattedAddress}</span>
+                </span>
+              )}
+              {ambianceTags.length > 0 && (
+                <>
+                  {restaurant.formattedAddress && (
+                    <span className="text-muted-foreground/60">·</span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded-md bg-muted/80 px-2 py-0.5 text-muted-foreground">
+                    <Sparkles className="h-3 w-3" />
+                    {ambianceTags.slice(0, 3).join(" · ")}
+                  </span>
+                </>
+              )}
+              {sourceUrl && (
+                <>
+                  {(restaurant.formattedAddress || ambianceTags.length > 0) && (
+                    <span className="text-muted-foreground/60">·</span>
+                  )}
+                  <button
+                    type="button"
+                    role="link"
+                    className="inline-flex items-center gap-1 truncate font-medium text-primary hover:underline text-left"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(sourceUrl, "_blank", "noopener,noreferrer");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(sourceUrl, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                  >
+                    <ExternalLink className="h-3 w-3 shrink-0" />
+                    {(() => {
+                      try {
+                        return new URL(sourceUrl).hostname.replace(/^www\./, "");
+                      } catch {
+                        return "Source";
+                      }
+                    })()}
+                  </button>
+                </>
+              )}
+            </div>
 
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center justify-between pt-1">
               <div className="flex gap-2">
                 <span className="rounded-full bg-primary/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-primary border border-primary/20">
                   {statusLabel}
                 </span>
                 {latestVisit && (
                   <span className="rounded-full bg-secondary/10 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-secondary border border-secondary/20">
-                    PF {formatPFRatio(latestVisit.pfRatio)}
+                    PF {formatPFRatio(calculatePFRatio(latestVisit.fullnessScore, latestVisit.tasteScore, latestVisit.pricePaid))}
                   </span>
                 )}
               </div>

@@ -1,6 +1,8 @@
-import type { Visit as PrismaVisit } from '@prisma/client';
+import type { Visit as PrismaVisit, Photo } from '@prisma/client';
 
 export type Visit = PrismaVisit;
+
+export type VisitWithPhotos = Visit & { photos?: Pick<Photo, 'url'>[] };
 
 export interface VisitFormData {
   restaurantId: string;
@@ -8,7 +10,7 @@ export interface VisitFormData {
   fullnessScore: number;
   tasteScore: number;
   pricePaid: number;
-  serviceRating?: number;
-  ambianceRating?: number;
   notes?: string;
+  groupId?: string;
+  photoUrls?: string[];
 }

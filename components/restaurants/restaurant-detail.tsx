@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { RestaurantWithDetails } from "@/types/restaurant";
-import { ChevronRight, MapPin } from "lucide-react";
+import { ChevronRight, MapPin, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PFRatioDisplay } from "@/components/visits/pf-ratio-display";
-import { VisitForm } from "@/components/visits/visit-form";
+import { LogVisitModal } from "@/components/visits/log-visit-modal";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
 interface RestaurantDetailProps {
   restaurant: RestaurantWithDetails;
@@ -37,6 +38,7 @@ function getGoogleMapsUrl(restaurant: RestaurantWithDetails): string | null {
 
 export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [logVisitOpen, setLogVisitOpen] = useState(false);
   const googleMapsUrl = getGoogleMapsUrl(restaurant);
 
   const photoRefs = restaurant.photoReferences ?? [];
@@ -124,25 +126,7 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
         </div>
       </div>
 
-      {/* Main Content Area */}
       <main className="relative -mt-6 rounded-t-[2.5rem] bg-background p-6 shadow-2xl">
-        {/* Navigation Tabs */}
-        <div className="mb-8 flex items-center justify-start border-b-2 border-muted font-bold text-muted-foreground gap-8">
-          {["Info", "Location"].map((tab, i) => (
-            <button
-              key={tab}
-              className={cn(
-                "pb-4 text-[10px] uppercase tracking-widest transition-all",
-                i === 0
-                  ? "text-primary border-b-2 border-primary"
-                  : "hover:text-foreground opacity-60",
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
         {googleMapsUrl && (
           <a
             href={googleMapsUrl}
@@ -173,9 +157,6 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
                   <h3 className="text-md font-black italic tracking-tighter text-foreground uppercase">
                     {dish}
                   </h3>
-                  <p className="mt-1 text-[10px] uppercase font-black tracking-widest text-muted-foreground">
-                    Recommended Dish
-                  </p>
                 </div>
               </div>
             ))}
@@ -187,13 +168,21 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
             Your Food Journey
           </h2>
           <PFRatioDisplay visits={restaurant.visits} />
-          <div className="rounded-3l border-2 border-primary/20 p-6">
-            <h3 className="mb-4 text-sm font-black italic text-foreground">
-              LOG NEW VISIT
-            </h3>
-            <VisitForm restaurantId={restaurant.id} />
-          </div>
+          <Button
+            type="button"
+            onClick={() => setLogVisitOpen(true)}
+            size="lg"
+            className="w-full h-14 rounded-full text-lg font-black uppercase tracking-widest shadow-[0_10px_30px_rgb(255,215,0,0.2)]"
+          >
+            <Plus className="mr-2 h-5 w-5" />
+            Log visit
+          </Button>
         </div>
+        <LogVisitModal
+          open={logVisitOpen}
+          onClose={() => setLogVisitOpen(false)}
+          restaurantId={restaurant.id}
+        />
       </main>
 
       {/* Stick Nav Footer is managed by the page layout */}

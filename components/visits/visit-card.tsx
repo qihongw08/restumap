@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { formatPFRatio } from '@/lib/utils';
+import { formatPFRatio, calculatePFRatio } from '@/lib/utils';
 import type { Visit } from '@/types/visit';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -10,6 +10,11 @@ interface VisitCardProps {
 }
 
 export function VisitCard({ visit }: VisitCardProps) {
+  const pfRatio = calculatePFRatio(
+    visit.fullnessScore,
+    visit.tasteScore,
+    visit.pricePaid,
+  );
   return (
     <Card>
       <CardContent className="p-3">
@@ -18,7 +23,7 @@ export function VisitCard({ visit }: VisitCardProps) {
             {format(new Date(visit.visitDate), 'MMM d, yyyy')}
           </span>
           <span className="font-semibold text-[#FF6B6B]">
-            PF {formatPFRatio(visit.pfRatio)}
+            PF {formatPFRatio(pfRatio)}
           </span>
         </div>
         <p className="mt-1 text-xs text-gray-500">

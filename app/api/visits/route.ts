@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser } from '@/lib/auth';
-import {
-  calculatePFRatio,
-  isValidFullnessOrTaste,
-  isValidPrice,
-} from '@/lib/utils';
+import { isValidFullnessOrTaste, isValidPrice } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -19,9 +15,9 @@ export async function POST(request: NextRequest) {
       fullnessScore,
       tasteScore,
       pricePaid,
-      serviceRating,
-      ambianceRating,
       notes,
+      groupId: bodyGroupId,
+      photoUrls,
     } = body;
 
     if (
@@ -40,12 +36,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const pfRatio = calculatePFRatio(
-      Number(fullnessScore),
-      Number(tasteScore),
-      Number(pricePaid)
-    );
-
     const link = await prisma.userRestaurant.findUnique({
       where: { userId_restaurantId: { userId: user.id, restaurantId } },
     });
@@ -56,26 +46,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const [visit] = await prisma.$transaction([
-      prisma.visit.create({
+    if (bodyGroupId && typeof bodyGroupId === 'string') {
+      const member = await prisma.groupMember.findUnique({
+        where: {
+          groupId_userId: { groupId: bodyGroupId.trim(), userId: user.id },
+        },
+      });
+      if (!member) {
+        return NextResponse.json(
+          { error: 'Not a member of that group' },
+          { status: 403 }
+        );
+      }
+    }
+
+    const urls = Array.isArray(photoUrls)
+      ? (photoUrls as string[]).filter(
+          (u): u is string => typeof u === 'string' && u.length > 0
+        )
+      : [];
+
+    const visit = await prisma.$transaction(async (tx) => {
+      const v = await tx.visit.create({
         data: {
           userId: user.id,
           restaurantId,
+          groupId: bodyGroupId,
           visitDate: new Date(visitDate),
           fullnessScore: Number(fullnessScore),
           tasteScore: Number(tasteScore),
           pricePaid: Number(pricePaid),
-          pfRatio,
-          serviceRating: serviceRating != null ? Number(serviceRating) : null,
-          ambianceRating: ambianceRating != null ? Number(ambianceRating) : null,
           notes: notes ?? null,
         },
-      }),
-      prisma.userRestaurant.update({
+      });
+      if (urls.length > 0) {
+        await tx.photo.createMany({
+          data: urls.map((url) => ({
+            userId: user.id,
+            restaurantId,
+            visitId: v.id,
+            url,
+          })),
+        });
+      }
+      await tx.userRestaurant.update({
         where: { userId_restaurantId: { userId: user.id, restaurantId } },
         data: { status: 'VISITED' },
-      }),
-    ]);
+      });
+      return tx.visit.findUnique({
+        where: { id: v.id },
+        include: { photos: true },
+      });
+    });
 
     return NextResponse.json({ data: visit }, { status: 201 });
   } catch (error) {

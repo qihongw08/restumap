@@ -56,10 +56,67 @@ export async function GET(
         }
       : null,
   }));
+
+  const addedPairs = group.groupRestaurants.map((gr) => ({
+    userId: gr.addedById,
+    restaurantId: gr.restaurantId,
+  }));
+  const userRestaurants =
+    addedPairs.length > 0
+      ? await prisma.userRestaurant.findMany({
+          where: {
+            OR: addedPairs.map((p) => ({
+              userId: p.userId,
+              restaurantId: p.restaurantId,
+            })),
+          },
+          select: { userId: true, restaurantId: true, sourceUrl: true },
+        })
+      : [];
+  const sourceUrlMap = new Map(
+    userRestaurants.map((ur) => [
+      `${ur.userId}:${ur.restaurantId}`,
+      ur.sourceUrl ?? undefined,
+    ]),
+  );
+  const groupRestaurantsWithSource = group.groupRestaurants.map((gr) => ({
+    ...gr,
+    sourceUrl: sourceUrlMap.get(`${gr.addedById}:${gr.restaurantId}`),
+  }));
+
+  const groupVisits = await prisma.visit.findMany({
+    where: { groupId: id },
+    orderBy: { visitDate: "desc" },
+    include: {
+      photos: { select: { url: true } },
+      restaurant: { select: { id: true, name: true } },
+    },
+  });
+  const groupVisitsWithUser = groupVisits.map((v) => {
+    const u = userMap[v.userId];
+    return {
+      id: v.id,
+      userId: v.userId,
+      restaurantId: v.restaurantId,
+      visitDate: v.visitDate,
+      fullnessScore: v.fullnessScore,
+      tasteScore: v.tasteScore,
+      pricePaid: v.pricePaid,
+      notes: v.notes,
+      photos: v.photos,
+      restaurant: v.restaurant,
+      user: u
+        ? { username: u.username, avatarUrl: u.avatarUrl ?? undefined }
+        : null,
+    };
+  });
+
   return NextResponse.json({
     data: {
       ...group,
+      groupRestaurants: groupRestaurantsWithSource,
       members: membersWithUser,
+      groupVisits: groupVisitsWithUser,
       currentUserId: user.id,
       currentMember: currentMember ? { role: currentMember.role } : null,
     },

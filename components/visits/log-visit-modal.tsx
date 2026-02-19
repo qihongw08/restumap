@@ -1,20 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { calculatePFRatio, clampScore, cn } from "@/lib/utils";
 import { PF_RATIO_FULLNESS_MAX, PF_RATIO_TASTE_MAX } from "@/lib/constants";
+import { Plus, X } from "lucide-react";
 
-interface VisitFormProps {
+interface LogVisitModalProps {
+  open: boolean;
+  onClose: () => void;
   restaurantId: string;
 }
 
-export function VisitForm({ restaurantId }: VisitFormProps) {
+interface GroupOption {
+  id: string;
+  name: string;
+}
+
+export function LogVisitModal({
+  open,
+  onClose,
+  restaurantId,
+}: LogVisitModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
 
   const [visitDate, setVisitDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -23,6 +37,16 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
   const [tasteScore, setTasteScore] = useState(5);
   const [pricePaid, setPricePaid] = useState("");
   const [notes, setNotes] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    if (!open || !restaurantId) return;
+    fetch(`/api/restaurants/${restaurantId}/groups`)
+      .then((res) => (res.ok ? res.json() : { data: [] }))
+      .then((json) => setGroups(json.data ?? []))
+      .catch(() => setGroups([]));
+  }, [open, restaurantId]);
 
   const priceNum = parseFloat(pricePaid);
   const validPrice = Number.isFinite(priceNum) && priceNum > 0;
@@ -30,15 +54,52 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
     ? calculatePFRatio(fullnessScore, tasteScore, priceNum)
     : 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const chosen = e.target.files;
+    if (!chosen?.length) return;
+    const allowed = Array.from(chosen).filter((f) =>
+      f.type.startsWith("image/"),
+    );
+    setPhotoFiles((prev) => [...prev, ...allowed].slice(0, 10));
+    e.target.value = "";
+  };
+  const removePhotoFile = (index: number) => {
+    setPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validPrice) {
       setError("Enter a valid price (e.g. 25.50)");
       return;
     }
+    const form = e.currentTarget;
+    const selectedGroupId =
+      (
+        form.elements.namedItem("groupId") as HTMLSelectElement | null
+      )?.value?.trim() || undefined;
+
     setError(null);
     setIsSubmitting(true);
+
     try {
+      let photoUrls: string[] = [];
+      if (photoFiles.length > 0) {
+        const formData = new FormData();
+        formData.append("restaurantId", restaurantId);
+        if (selectedGroupId) formData.append("groupId", selectedGroupId);
+        photoFiles.forEach((f) => formData.append("files", f));
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          const data = await uploadRes.json().catch(() => ({}));
+          throw new Error(data.error ?? "Photo upload failed");
+        }
+        const uploadJson = await uploadRes.json();
+        photoUrls = uploadJson.urls ?? [];
+      }
       const res = await fetch("/api/visits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,15 +110,20 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
           tasteScore: clampScore(tasteScore, 1, PF_RATIO_TASTE_MAX),
           pricePaid: priceNum,
           notes: notes || undefined,
+          groupId: selectedGroupId,
+          photoUrls: photoUrls.length > 0 ? photoUrls : undefined,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Failed to save visit");
       }
+      onClose();
       router.refresh();
       setPricePaid("");
       setNotes("");
+      setGroupId("");
+      setPhotoFiles([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -66,8 +132,8 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid grid-cols-1 gap-6">
+    <Modal open={open} onClose={onClose} title="Log visit">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <Input
           label="WHEN DID YOU VISIT?"
           type="date"
@@ -95,7 +161,6 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
               className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
             />
           </div>
-
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -153,7 +218,7 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
         </div>
 
         {validPrice && (
-          <div className="flex items-center justify-between rounded-2xl bg-primary px-6 py-4 shadow-lg animate-in zoom-in duration-300">
+          <div className="flex items-center justify-between rounded-2xl bg-primary px-6 py-4 shadow-lg">
             <span className="text-xs font-black uppercase tracking-widest text-primary-foreground opacity-80">
               PF RATIO™
             </span>
@@ -162,6 +227,76 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
             </span>
           </div>
         )}
+
+        {groups.length > 0 && (
+          <div className="space-y-1">
+            <label
+              htmlFor="visit-group"
+              className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground"
+            >
+              WITH GROUP (OPTIONAL)
+            </label>
+            <select
+              id="visit-group"
+              name="groupId"
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              className="w-full rounded-2xl border-2 border-border bg-background py-3 px-4 text-sm font-bold text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              <option value="">None</option>
+              {groups.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="block text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            PHOTOS (OPTIONAL)
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {photoFiles.map((file, i) => (
+              <div
+                key={`${file.name}-${i}`}
+                className="relative rounded-lg border-2 border-border bg-muted overflow-hidden"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- Local blob preview */}
+                <img
+                  src={URL.createObjectURL(file)}
+                  alt=""
+                  className="h-20 w-20 object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhotoFile(i)}
+                  className="absolute top-1 right-1 rounded-full bg-background/90 p-1 text-muted-foreground hover:text-foreground"
+                  aria-label="Remove photo"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+            {photoFiles.length < 10 && (
+              <label className="flex h-20 w-20 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted bg-muted/30 text-muted-foreground hover:border-primary/50 hover:bg-muted/50">
+                <Plus className="h-6 w-6" />
+                <span className="mt-1 text-[10px] font-bold">Add</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  multiple
+                  className="sr-only"
+                  onChange={handlePhotoChange}
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Upload up to 10 images (JPEG, PNG, WebP, GIF). Max 10 MB each.
+          </p>
+        </div>
 
         <Input
           label="ORDER NOTES (OPTIONAL)"
@@ -175,11 +310,11 @@ export function VisitForm({ restaurantId }: VisitFormProps) {
           type="submit"
           disabled={isSubmitting || !validPrice}
           size="lg"
-          className="w-full h-16 rounded-full text-xl shadow-[0_10px_30px_rgb(255,215,0,0.3)]"
+          className="w-full h-14 rounded-full text-lg shadow-[0_10px_30px_rgb(255,215,0,0.3)]"
         >
-          {isSubmitting ? "SAVING JOURNEY…" : "LOG VISIT"}
+          {isSubmitting ? "SAVING…" : "LOG VISIT"}
         </Button>
-      </div>
-    </form>
+      </form>
+    </Modal>
   );
 }
