@@ -1,30 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth';
-import { getPlaceDetails } from '@/lib/places';
-import { geocodeAddress } from '@/lib/maps';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
 /**
- * Create a restaurant from an import (link + optional Google Place).
- * If placeId is provided, we fetch Place Details and create/update by googlePlaceId.
- * We always create an Import row with sourceUrl and importedAt.
+ * Create a restaurant from an import. Expects placeId and extracted data (and
+ * optionally place details) to be already fetched by the client. Creates/updates
+ * by googlePlaceId and an Import row with sourceUrl and importedAt.
  */
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await request.json();
     const sourceUrl =
-      typeof body.sourceUrl === 'string' ? body.sourceUrl : null;
+      typeof body.sourceUrl === "string" ? body.sourceUrl : null;
     const placeId = body.placeId ?? null;
     const extracted = body.extracted ?? {};
 
-    const name = extracted.name ?? 'Unknown';
+    const name = extracted.name ?? "Unknown";
     const address = extracted.address ?? null;
     const rawCaption =
-      typeof extracted.rawCaption === 'string' ? extracted.rawCaption : null;
+      typeof extracted.rawCaption === "string" ? extracted.rawCaption : null;
     const sourcePlatform =
-      typeof body.sourcePlatform === 'string' ? body.sourcePlatform : null;
+      typeof body.sourcePlatform === "string" ? body.sourcePlatform : null;
     const cuisineTypes = Array.isArray(extracted.cuisineTypes)
       ? extracted.cuisineTypes
       : [];
@@ -37,48 +36,72 @@ export async function POST(request: NextRequest) {
       : [];
 
     let restaurantId: string;
-    let formattedAddress: string | null = address;
-    let latitude: number | null = null;
-    let longitude: number | null = null;
-    let googlePlaceId: string | null = null;
-    let photoReferences: string[] = [];
+    const rawFormatted =
+      typeof extracted.formattedAddress === "string"
+        ? extracted.formattedAddress
+        : address;
+    const formattedAddress: string | null = rawFormatted ?? null;
+    const latitude: number | null =
+      typeof body.latitude === "number" ? body.latitude : null;
+    const longitude: number | null =
+      typeof body.longitude === "number" ? body.longitude : null;
+    const googlePlaceId: string | null =
+      typeof placeId === "string" && placeId.trim() ? placeId.trim() : null;
+    const photoReferences: string[] = Array.isArray(body.photoReferences)
+      ? (body.photoReferences as unknown[]).filter(
+          (p): p is string => typeof p === "string",
+        )
+      : [];
+    const openingHoursWeekdayText: string[] = Array.isArray(
+      extracted.openingHoursWeekdayText,
+    )
+      ? extracted.openingHoursWeekdayText
+      : [];
 
-    if (placeId) {
-      const details = await getPlaceDetails(placeId);
-      googlePlaceId = details.placeId;
-      formattedAddress = details.formattedAddress;
-      latitude = details.latitude;
-      longitude = details.longitude;
-      photoReferences = details.photoReferences;
-      const openingHoursWeekdayText = details.openingHoursWeekdayText ?? [];
-
+    if (googlePlaceId) {
       const existing = await prisma.restaurant.findUnique({
         where: { googlePlaceId },
       });
 
       if (existing) {
         restaurantId = existing.id;
+        const needsCoords =
+          latitude != null &&
+          longitude != null &&
+          (existing.latitude == null || existing.longitude == null);
         const needsUpdate =
-          (photoReferences.length > 0 && (existing.photoReferences?.length ?? 0) === 0) ||
-          (openingHoursWeekdayText.length > 0 && (existing.openingHoursWeekdayText?.length ?? 0) === 0);
+          (photoReferences.length > 0 &&
+            (existing.photoReferences?.length ?? 0) === 0) ||
+          (openingHoursWeekdayText.length > 0 &&
+            (existing.openingHoursWeekdayText?.length ?? 0) === 0) ||
+          needsCoords;
         if (needsUpdate) {
           await prisma.restaurant.update({
             where: { id: existing.id },
             data: {
-              ...(photoReferences.length > 0 && (existing.photoReferences?.length ?? 0) === 0 ? { photoReferences } : {}),
-              ...(openingHoursWeekdayText.length > 0 && (existing.openingHoursWeekdayText?.length ?? 0) === 0 ? { openingHoursWeekdayText } : {}),
+              ...(photoReferences.length > 0 &&
+              (existing.photoReferences?.length ?? 0) === 0
+                ? { photoReferences }
+                : {}),
+              ...(openingHoursWeekdayText.length > 0 &&
+              (existing.openingHoursWeekdayText?.length ?? 0) === 0
+                ? { openingHoursWeekdayText }
+                : {}),
+              ...(needsCoords && latitude != null && longitude != null
+                ? { latitude, longitude }
+                : {}),
             },
           });
         }
       } else {
         const created = await prisma.restaurant.create({
           data: {
-            name: details.name || name,
-            address: details.formattedAddress ?? address,
-            formattedAddress: details.formattedAddress ?? address,
-            latitude: details.latitude ?? null,
-            longitude: details.longitude ?? null,
-            googlePlaceId: details.placeId,
+            name,
+            address,
+            formattedAddress,
+            latitude,
+            longitude,
+            googlePlaceId,
             photoReferences,
             openingHoursWeekdayText,
             cuisineTypes,
@@ -90,14 +113,6 @@ export async function POST(request: NextRequest) {
         restaurantId = created.id;
       }
     } else {
-      if (address) {
-        const geo = await geocodeAddress(address);
-        if (geo) {
-          latitude = geo.latitude;
-          longitude = geo.longitude;
-          formattedAddress = geo.formattedAddress;
-        }
-      }
       const created = await prisma.restaurant.create({
         data: {
           name,
@@ -109,6 +124,7 @@ export async function POST(request: NextRequest) {
           popularDishes,
           priceRange,
           ambianceTags,
+          openingHoursWeekdayText,
         },
       });
       restaurantId = created.id;
@@ -119,7 +135,7 @@ export async function POST(request: NextRequest) {
       create: {
         userId: user.id,
         restaurantId,
-        status: 'WANT_TO_GO',
+        status: "WANT_TO_GO",
         sourceUrl: sourceUrl || null,
         sourcePlatform,
         rawCaption,
@@ -131,7 +147,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await prisma['import'].create({
+    await prisma["import"].create({
       data: {
         sourceUrl: sourceUrl || null,
         restaurantId,
@@ -162,13 +178,13 @@ export async function POST(request: NextRequest) {
           rawCaption: ur!.rawCaption,
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
-    console.error('Import error:', error);
+    console.error("Import error:", error);
     return NextResponse.json(
-      { error: 'Failed to save import' },
-      { status: 500 }
+      { error: "Failed to save import" },
+      { status: 500 },
     );
   }
 }

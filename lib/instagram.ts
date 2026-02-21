@@ -1,0 +1,109 @@
+/**
+ * Instagram URL normalization and caption fetching.
+ * Reel/post links often include ?utm_medium=... etc. which we strip so the link is stable.
+ * Caption is fetched via Instagram's internal GraphQL (no official API, no Python).
+ */
+
+/** Matches Instagram post/reel/reels/tv/stories and captures path type and shortcode. Optional username segment and query string supported. */
+const INSTAGRAM_POST_RE =
+  /instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(p|reels|reel|tv|stories)\/([A-Za-z0-9_-]+)/i;
+
+/** Full URL match for normalization: capture base URL without query. */
+const INSTAGRAM_URL_RE = new RegExp(
+  `(https?://(?:www\\.)?${INSTAGRAM_POST_RE.source})(?:\\?[^#\\s]*)?`,
+  "i"
+);
+
+export function isInstagramUrl(url: string): boolean {
+  return INSTAGRAM_POST_RE.test(url.trim());
+}
+
+/**
+ * Extract shortcode (media id) from an Instagram URL.
+ */
+export function getInstagramId(url: string): string | null {
+  const match = url.trim().match(INSTAGRAM_POST_RE);
+  return match?.[2] ?? null;
+}
+
+/**
+ * Normalize an Instagram URL by stripping query params (e.g. ?utm_medium=copy).
+ * Returns the clean canonical URL, or null if not an Instagram post/reel/tv URL.
+ */
+export function normalizeInstagramUrl(url: string): string | null {
+  const trimmed = url.trim();
+  const match = trimmed.match(INSTAGRAM_URL_RE);
+  if (!match) return null;
+  const base = match[1];
+  return base.endsWith("/") ? base : `${base}/`;
+}
+
+export type InstagramCaptionResult = {
+  caption: string | null;
+  location?: string | null;
+  author_name?: string;
+  shortcode?: string;
+  error?: string;
+};
+
+/** Instagram web app ID (public). */
+const X_IG_APP_ID = "936619743392459";
+
+/**
+ * Fetch post caption (and location) via Instagram's internal GraphQL.
+ * No Python or official API required.
+ */
+export async function getInstagramCaption(
+  instagramUrl: string
+): Promise<InstagramCaptionResult> {
+  const normalized = normalizeInstagramUrl(instagramUrl);
+  const url = normalized ?? instagramUrl.trim();
+  const shortcode = getInstagramId(url);
+  if (!shortcode) {
+    return { caption: null, error: "Could not parse shortcode from URL" };
+  }
+
+  const graphql = new URL("https://www.instagram.com/api/graphql");
+  graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
+  graphql.searchParams.set("doc_id", "10015901848480474");
+  graphql.searchParams.set("lsd", "AVqbxe3J_YA");
+
+  try {
+    const response = await fetch(graphql.toString(), {
+      method: "POST",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "X-IG-App-ID": X_IG_APP_ID,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: "https://www.instagram.com",
+        Referer: "https://www.instagram.com/",
+      },
+    });
+
+    const json = (await response.json()) as {
+      data?: {
+        xdt_shortcode_media?: {
+          edge_media_to_caption?: {
+            edges?: Array<{ node?: { text?: string } }>;
+          };
+          location?: { name?: string };
+        };
+      };
+    };
+
+    const media = json?.data?.xdt_shortcode_media;
+    const caption =
+      media?.edge_media_to_caption?.edges?.[0]?.node?.text ?? null;
+    const location = media?.location?.name ?? null;
+
+    return {
+      caption: caption ?? null,
+      location: location ?? null,
+      shortcode,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { caption: null, error: message };
+  }
+}

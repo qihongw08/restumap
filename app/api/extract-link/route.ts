@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { extractRestaurantFromText } from "@/lib/groq";
+import {
+  extractRestaurantFromInstagram,
+  extractRestaurantFromXiaohongshu,
+} from "@/lib/groq";
+import {
+  isInstagramUrl,
+  normalizeInstagramUrl,
+  getInstagramCaption,
+} from "@/lib/instagram";
+
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    try {
+      return await fn();
+    } catch (second) {
+      console.error("Extract retry failed:", second);
+      throw second;
+    }
+  }
+}
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser();
@@ -16,8 +37,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const extracted = await extractRestaurantFromText(raw);
-    return NextResponse.json({ data: extracted });
+    function isXiaohongshuUrl(raw: string): boolean {
+      return raw.includes("xhslink.com");
+    }
+
+    if (isInstagramUrl(raw)) {
+      const normalized = normalizeInstagramUrl(raw) ?? raw;
+      const result = await getInstagramCaption(normalized);
+      const text = result.caption?.trim() ?? normalized;
+      const extracted = await withRetry(() =>
+        extractRestaurantFromInstagram(text),
+      );
+      return NextResponse.json({ data: extracted });
+    } else if (isXiaohongshuUrl(raw)) {
+      const extracted = await withRetry(() =>
+        extractRestaurantFromXiaohongshu(raw),
+      );
+      return NextResponse.json({ data: extracted });
+    } else {
+      return NextResponse.json(
+        { error: "Only Instagram and Xiaohongshu URLs are supported" },
+        { status: 400 },
+      );
+    }
   } catch (error) {
     console.error("Extract link error:", error);
     return NextResponse.json(

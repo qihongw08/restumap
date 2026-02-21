@@ -12,6 +12,8 @@ import { Loading } from "@/components/shared/loading";
 type Extracted = {
   name: string;
   address: string | null;
+  formattedAddress?: string | null;
+  openingHoursWeekdayText?: string[];
   cuisineTypes: string[];
   popularDishes: string[];
   priceRange: string | null;
@@ -125,6 +127,8 @@ export function ImportContent() {
           extracted: {
             name: extracted.name,
             address: extracted.address,
+            formattedAddress: extracted.formattedAddress ?? extracted.address,
+            openingHoursWeekdayText: extracted.openingHoursWeekdayText ?? [],
             cuisineTypes: extracted.cuisineTypes ?? [],
             popularDishes: extracted.popularDishes ?? [],
             priceRange: extracted.priceRange,
