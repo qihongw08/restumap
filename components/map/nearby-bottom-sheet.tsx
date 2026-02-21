@@ -325,8 +325,8 @@ export function NearbyBottomSheet({
                       : "border-primary/5 hover:border-primary/40 hover:bg-muted/80",
                   )}
                 >
-                  <div className="flex min-w-0 items-center gap-5">
-                    <div className="h-24 w-24 rounded-3xl bg-muted overflow-hidden flex-shrink-0 border-2 border-primary/10 group-hover:border-primary shadow-lg ring-4 ring-primary/5">
+                  <div className="grid min-w-0 grid-cols-[6rem_1fr] gap-5 items-start">
+                    <div className="h-24 w-24 rounded-3xl bg-muted overflow-hidden shrink-0 border-2 border-primary/10 group-hover:border-primary shadow-lg ring-4 ring-primary/5">
                       <Image
                         src={
                           res.photoReferences?.[0]
@@ -341,41 +341,39 @@ export function NearbyBottomSheet({
                       />
                     </div>
 
-                    <div className="flex-1 min-w-0 flex min-h-0 flex-col gap-1.5 overflow-hidden">
+                    <div className="min-w-0 flex flex-col gap-1.5 overflow-hidden">
                       <div className="flex min-w-0 items-start justify-between gap-2">
-                        <h4 className="min-w-0 flex-1 text-md font-black italic tracking-tighter text-foreground uppercase group-hover:text-primary transition-colors">
-                          <span className="block min-w-0 max-w-full truncate">
+                        <h4 className="min-w-0 flex-1 text-md font-black italic tracking-tighter text-foreground uppercase group-hover:text-primary transition-colors overflow-hidden">
+                          <span className="line-clamp-1 block">
                             {res.name}
                           </span>
                         </h4>
                         {res.distance != null && (
-                          <div className="flex min-w-0 max-w-[40%] items-center gap-1 overflow-hidden bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-                            <span className="block min-w-0 max-w-full truncate text-[10px] font-black text-primary uppercase">
-                              {res.distance.toFixed(1)} MI
+                          <div className="flex shrink-0 items-center gap-1 overflow-hidden bg-primary/10 px-3 py-1 rounded-full border border-primary/20 max-w-[40%]">
+                            <span className="line-clamp-1 block text-[10px] font-black text-primary uppercase">
+                              {res.distance.toFixed(1)} mi
                             </span>
                           </div>
                         )}
                       </div>
                       {(res.formattedAddress ?? res.address) && (
-                        <p className="min-w-0 text-[10px] text-muted-foreground">
-                          <span className="block min-w-0 max-w-full truncate">
-                            {res.formattedAddress ?? res.address}
-                          </span>
+                        <p className="line-clamp-1 text-[10px] text-muted-foreground overflow-hidden">
+                          {res.formattedAddress ?? res.address}
                         </p>
                       )}
-                      <div className="flex min-w-0 items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
                         <UtensilsCrossed className="h-3 w-3 shrink-0 text-muted-foreground" />
-                        <p className="min-w-0 flex-1 text-[10px] font-black uppercase text-muted-foreground">
-                          <span className="block min-w-0 max-w-full truncate">
+                        <p className="min-w-0 flex-1 overflow-hidden text-[10px] font-black uppercase text-muted-foreground">
+                          <span className="line-clamp-1 block">
                             {res.cuisineTypes?.[0] || "Gourmet"} •{" "}
                             {res.priceRange || "—"}
                           </span>
                         </p>
                       </div>
                       {getOpenUntil(res.openingHoursWeekdayText) && (
-                        <div className="flex min-w-0 items-center gap-2 text-muted-foreground mt-1">
+                        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-muted-foreground mt-1">
                           <Clock className="h-3 w-3 shrink-0" />
-                          <span className="min-w-0 flex-1 block max-w-full truncate text-[10px] font-black uppercase">
+                          <span className="line-clamp-1 block min-w-0 flex-1 text-[10px] font-black uppercase overflow-hidden">
                             {getOpenUntil(res.openingHoursWeekdayText)}
                           </span>
                         </div>
