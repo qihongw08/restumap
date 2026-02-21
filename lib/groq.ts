@@ -98,8 +98,6 @@ async function compoundMini(
 ): Promise<string> {
   const message = systemPrompt + "\n\n" + userContent;
 
-  console.log("\n\nMESSAGE PROMPT: ", message, "\n\n");
-
   const completion = await groq.chat.completions.create({
     model: "groq/compound-mini",
     messages: [{ role: "user", content: message }],
@@ -136,8 +134,6 @@ function parseStep1Result(content: string): XiaohongshuStep1Result {
 export async function extractRestaurantFromInstagram(
   text: string,
 ): Promise<ExtractedRestaurant> {
-  console.log("extractRestaurantFromInstagram", text);
-
   const content = await compoundMini(
     EXTRACT_SYSTEM_INSTAGRAM,
     "Instagram post caption:\n" + text,

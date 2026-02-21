@@ -121,37 +121,43 @@ export function ImportContent() {
     try {
       const sourceUrl =
         extractUrl(text) ?? (isUrl(text.trim()) ? text.trim() : null);
+      const candidates = placesCandidates ?? [];
       const selectedCandidate =
-        selectedPlaceId && placesCandidates?.length
-          ? placesCandidates.find((c) => c.placeId === selectedPlaceId)
+        selectedPlaceId && candidates.length > 0
+          ? candidates.find((c) => c.placeId === selectedPlaceId) ??
+            (candidates.length === 1 ? candidates[0] : null)
           : null;
+
+      const payload: Record<string, unknown> = {
+        sourceUrl,
+        placeId: selectedPlaceId ?? undefined,
+        extracted: {
+          name: extracted.name,
+          address: extracted.address,
+          formattedAddress: extracted.formattedAddress ?? extracted.address,
+          openingHoursWeekdayText: extracted.openingHoursWeekdayText ?? [],
+          cuisineTypes: extracted.cuisineTypes ?? [],
+          popularDishes: extracted.popularDishes ?? [],
+          priceRange: extracted.priceRange,
+          ambianceTags: extracted.ambianceTags ?? [],
+        },
+      };
+      if (selectedCandidate) {
+        if (typeof selectedCandidate.latitude === "number")
+          payload.latitude = selectedCandidate.latitude;
+        if (typeof selectedCandidate.longitude === "number")
+          payload.longitude = selectedCandidate.longitude;
+        payload.photoReferences = Array.isArray(selectedCandidate.photoReferences)
+          ? selectedCandidate.photoReferences
+          : [];
+        if (selectedCandidate.formattedAddress)
+          payload.formattedAddress = selectedCandidate.formattedAddress;
+      }
 
       const res = await fetch("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceUrl,
-          placeId: selectedPlaceId,
-          ...(selectedCandidate && {
-            latitude: selectedCandidate.latitude ?? undefined,
-            longitude: selectedCandidate.longitude ?? undefined,
-            photoReferences: selectedCandidate.photoReferences ?? [],
-            formattedAddress:
-              selectedCandidate.formattedAddress ??
-              extracted.formattedAddress ??
-              extracted.address,
-          }),
-          extracted: {
-            name: extracted.name,
-            address: extracted.address,
-            formattedAddress: extracted.formattedAddress ?? extracted.address,
-            openingHoursWeekdayText: extracted.openingHoursWeekdayText ?? [],
-            cuisineTypes: extracted.cuisineTypes ?? [],
-            popularDishes: extracted.popularDishes ?? [],
-            priceRange: extracted.priceRange,
-            ambianceTags: extracted.ambianceTags ?? [],
-          },
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to save restaurant");
       setExtracted(null);

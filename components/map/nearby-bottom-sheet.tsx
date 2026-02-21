@@ -27,6 +27,8 @@ interface NearbyBottomSheetProps {
   highlightedRestaurantId?: string | null;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** First click: select and zoom to restaurant. Second click (same card): navigate to restaurant page. */
+  onRestaurantClick?: (restaurantId: string) => void;
 }
 
 const CATEGORIES = [
@@ -76,9 +78,11 @@ export function NearbyBottomSheet({
   highlightedRestaurantId = null,
   isOpen: controlledOpen,
   onOpenChange,
+  onRestaurantClick,
 }: NearbyBottomSheetProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const isControlled = controlledOpen !== undefined && onOpenChange !== undefined;
+  const isControlled =
+    controlledOpen !== undefined && onOpenChange !== undefined;
   const isOpen = isControlled ? controlledOpen : internalOpen;
   const setIsOpen = isControlled ? onOpenChange : setInternalOpen;
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -295,78 +299,87 @@ export function NearbyBottomSheet({
                 ref={(el) => {
                   cardRefs.current[res.id] = el;
                 }}
-                className={cn(
-                  "group relative flex flex-col gap-4 p-5 rounded-[2.5rem] bg-background/40 border transition-all active:scale-[0.98] shadow-sm",
-                  highlightedRestaurantId === res.id
-                    ? "border-primary ring-2 ring-primary/50 bg-primary/5"
-                    : "border-primary/5 hover:border-primary/40 hover:bg-muted/80",
-                )}
               >
-                <div className="flex items-center gap-5">
-                  <div className="h-24 w-24 rounded-3xl bg-muted overflow-hidden flex-shrink-0 border-2 border-primary/10 group-hover:border-primary shadow-lg ring-4 ring-primary/5">
-                    <Image
-                      src={
-                        res.photoReferences?.[0]
-                          ? `/api/places/photo?reference=${encodeURIComponent(res.photoReferences[0])}`
-                          : FALLBACK_IMAGE
-                      }
-                      alt={res.name}
-                      width={96}
-                      height={96}
-                      unoptimized={!!res.photoReferences?.[0]}
-                      className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                  </div>
+                <button
+                  type="button"
+                  onClick={() => onRestaurantClick?.(res.id)}
+                  className={cn(
+                    "group relative flex w-full flex-col gap-4 p-5 rounded-[2.5rem] bg-background/40 border transition-all active:scale-[0.98] shadow-sm text-left",
+                    highlightedRestaurantId === res.id
+                      ? "border-primary ring-2 ring-primary/50 bg-primary/5"
+                      : "border-primary/5 hover:border-primary/40 hover:bg-muted/80",
+                  )}
+                >
+                  <div className="flex items-center gap-5">
+                    <div className="h-24 w-24 rounded-3xl bg-muted overflow-hidden flex-shrink-0 border-2 border-primary/10 group-hover:border-primary shadow-lg ring-4 ring-primary/5">
+                      <Image
+                        src={
+                          res.photoReferences?.[0]
+                            ? `/api/places/photo?reference=${encodeURIComponent(res.photoReferences[0])}`
+                            : FALLBACK_IMAGE
+                        }
+                        alt={res.name}
+                        width={96}
+                        height={96}
+                        unoptimized={!!res.photoReferences?.[0]}
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    </div>
 
-                  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-lg font-black italic tracking-tighter text-foreground uppercase truncate group-hover:text-primary transition-colors">
-                        {res.name}
-                      </h4>
-                      {res.distance != null && (
-                        <div className="flex items-center gap-1 shrink-0 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
-                          <MapPin className="h-3 w-3 text-primary" />
-                          <span className="text-[10px] font-black text-primary uppercase">
-                            {res.distance.toFixed(1)} Miles
+                    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-lg font-black italic tracking-tighter text-foreground uppercase truncate group-hover:text-primary transition-colors">
+                          {res.name}
+                        </h4>
+                        {res.distance != null && (
+                          <div className="flex items-center gap-1 shrink-0 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                            <MapPin className="h-3 w-3 text-primary" />
+                            <span className="text-[10px] font-black text-primary uppercase">
+                              {res.distance.toFixed(1)} Miles
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {(res.formattedAddress ?? res.address) && (
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {res.formattedAddress ?? res.address}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1 text-primary">
+                          <Star className="h-3 w-3 fill-primary" />
+                          <span className="text-xs font-black">4.8</span>
+                        </div>
+                        <span className="h-1 w-1 rounded-full bg-muted" />
+                        <p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground truncate">
+                          {res.cuisineTypes?.[0] || "Gourmet"} •{" "}
+                          {res.priceRange || "—"}
+                        </p>
+                      </div>
+                      {getTodaysHours(res.openingHoursWeekdayText) && (
+                        <div className="flex items-center gap-2 text-muted-foreground mt-1">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                            {getTodaysHours(res.openingHoursWeekdayText)}
                           </span>
                         </div>
                       )}
                     </div>
+                  </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 text-primary">
-                        <Star className="h-3 w-3 fill-primary" />
-                        <span className="text-xs font-black">4.8</span>
-                      </div>
-                      <span className="h-1 w-1 rounded-full bg-muted" />
-                      <p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground truncate">
-                        {res.cuisineTypes?.[0] || "Gourmet"} •{" "}
-                        {res.priceRange || "—"}
-                      </p>
-                    </div>
-                    {getTodaysHours(res.openingHoursWeekdayText) && (
-                      <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                        <Clock className="h-3 w-3 shrink-0" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
-                          {getTodaysHours(res.openingHoursWeekdayText)}
+                  {res.ambianceTags && res.ambianceTags.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                      {res.ambianceTags.slice(0, 3).map((tag) => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 rounded-full bg-muted/60 border border-border/50 text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate"
+                        >
+                          #{tag}
                         </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {res.ambianceTags && res.ambianceTags.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                    {res.ambianceTags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 rounded-full bg-muted/60 border border-border/50 text-[8px] font-black uppercase tracking-widest text-muted-foreground truncate"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
+                </button>
               </div>
             ))}
 

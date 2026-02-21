@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { RestaurantWithDetails } from "@/types/restaurant";
-import { ChevronRight, MapPin, Plus } from "lucide-react";
+import { ChevronRight, MapPin, Plus, Clock, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PFRatioDisplay } from "@/components/visits/pf-ratio-display";
 import { LogVisitModal } from "@/components/visits/log-visit-modal";
@@ -102,7 +102,7 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
         {/* Floating Title Info */}
         <div className="absolute bottom-6 left-6 right-6 space-y-2">
           {(restaurant.sourceUrl ?? restaurant.savedAt) && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-6">
               {restaurant.sourceUrl && (
                 <a
                   href={restaurant.sourceUrl}
@@ -120,24 +120,61 @@ export function RestaurantDetail({ restaurant }: RestaurantDetailProps) {
               )}
             </div>
           )}
-          <h1 className="text-3xl font-black italic tracking-tighter text-white">
-            {restaurant.name}
-          </h1>
         </div>
       </div>
 
       <main className="relative -mt-6 rounded-t-[2.5rem] bg-background p-6 shadow-2xl">
-        {googleMapsUrl && (
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/10 py-3 px-4 text-sm font-black uppercase tracking-widest text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
-          >
-            <MapPin className="h-5 w-5 shrink-0" />
-            Open in Google Maps
-          </a>
+        <h1 className="text-3xl font-black italic tracking-tighter text-foreground mb-6">
+          {restaurant.name}
+        </h1>
+        {((restaurant.formattedAddress ?? restaurant.address) ||
+          (restaurant.openingHoursWeekdayText?.length ?? 0) > 0 ||
+          restaurant.priceRange) && (
+          <div className="mb-6 space-y-4 rounded-2xl border-2 border-muted bg-card/50 p-4">
+            {(restaurant.formattedAddress ?? restaurant.address) && (
+              <div className="flex gap-3">
+                <MapPin className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                <a
+                  href={googleMapsUrl ?? ""}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-foreground hover:underline hover:text-blue-500"
+                >
+                  {restaurant.formattedAddress ?? restaurant.address}
+                </a>
+              </div>
+            )}
+            {restaurant.priceRange && (
+              <div className="flex gap-3">
+                <DollarSign className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                <p className="text-sm font-bold text-foreground">
+                  {restaurant.priceRange}
+                </p>
+              </div>
+            )}
+            {restaurant.openingHoursWeekdayText &&
+              restaurant.openingHoursWeekdayText.length > 0 && (
+                <div className="flex gap-3">
+                  <Clock className="h-5 w-5 shrink-0 text-primary mt-0.5" />
+                  <div className="text-sm text-foreground space-y-1">
+                    {restaurant.openingHoursWeekdayText.map((line) => (
+                      <p key={line} className="font-medium">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+          </div>
         )}
+
+        <Link
+          href={`/map?restaurant=${restaurant.id}`}
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary/30 bg-primary/10 py-3 px-4 text-sm font-black uppercase tracking-widest text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        >
+          <MapPin className="h-5 w-5 shrink-0" />
+          Open in Map
+        </Link>
 
         {/* Section: Main Course / Popular Dishes */}
         <div className="space-y-6">

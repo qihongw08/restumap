@@ -63,23 +63,36 @@ export async function getInstagramCaption(
     return { caption: null, error: "Could not parse shortcode from URL" };
   }
 
-  const graphql = new URL("https://www.instagram.com/api/graphql");
-  graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
-  graphql.searchParams.set("doc_id", "10015901848480474");
-  graphql.searchParams.set("lsd", "AVqbxe3J_YA");
+  const body = new URLSearchParams({
+    variables: JSON.stringify({ shortcode }),
+    doc_id: "10015901848480474",
+    lsd: "AVqbxe3J_YA",
+  });
 
   try {
-    const response = await fetch(graphql.toString(), {
+    const response = await fetch("https://www.instagram.com/api/graphql", {
       method: "POST",
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "X-IG-App-ID": X_IG_APP_ID,
+        "X-FB-LSD": "AVqbxe3J_YA",
         "Content-Type": "application/x-www-form-urlencoded",
-        Origin: "https://www.instagram.com",
-        Referer: "https://www.instagram.com/",
+        "Accept": "*/*",
+        "Origin": "https://www.instagram.com",
+        "Referer": "https://www.instagram.com/",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-Mode": "cors",
       },
+      body: body.toString(),
     });
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      return {
+        caption: null,
+        error: "Instagram returned non-JSON (likely login wall or block)",
+      };
+    }
 
     const json = (await response.json()) as {
       data?: {
@@ -93,15 +106,10 @@ export async function getInstagramCaption(
     };
 
     const media = json?.data?.xdt_shortcode_media;
-    const caption =
-      media?.edge_media_to_caption?.edges?.[0]?.node?.text ?? null;
+    const caption = media?.edge_media_to_caption?.edges?.[0]?.node?.text ?? null;
     const location = media?.location?.name ?? null;
 
-    return {
-      caption: caption ?? null,
-      location: location ?? null,
-      shortcode,
-    };
+    return { caption, location, shortcode };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return { caption: null, error: message };

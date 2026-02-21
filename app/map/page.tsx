@@ -8,7 +8,11 @@ import type { RestaurantStatus } from "@prisma/client";
 export default async function MapPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; priceRange?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    priceRange?: string;
+    restaurant?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -48,7 +52,10 @@ export default async function MapPage({
   return (
     <div className="fixed inset-0 min-h-screen bg-background overflow-hidden">
       <main className="relative h-full w-full">
-        <MapView restaurants={restaurants} />
+        <MapView
+          restaurants={restaurants}
+          highlightRestaurantId={params.restaurant ?? null}
+        />
       </main>
       <Nav />
     </div>

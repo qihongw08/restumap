@@ -31,9 +31,7 @@ export interface PlaceCandidate {
 export async function searchPlaces(query: string): Promise<PlaceCandidate[]> {
   const key = getKey();
   const endpoint = "https://places.googleapis.com/v1/places:searchText";
-
-  console.log("searchPlaces", query);
-
+  
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {

@@ -1,17 +1,23 @@
 "use client";
 
 import { useMemo, useEffect } from "react";
-import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
+import {
+  APIProvider,
+  Map,
+  AdvancedMarker,
+  type MapCameraChangedEvent,
+} from "@vis.gl/react-google-maps";
 import type { RestaurantWithVisits } from "@/types/restaurant";
 import { LocationButton } from "@/components/map/location-button";
 import { useLocation } from "@/hooks/use-location";
 
-interface RestaurantMapProps {
+export interface RestaurantMapProps {
   restaurants: RestaurantWithVisits[];
   center?: { lat: number; lng: number };
   zoom?: number;
   selectedRestaurantId?: string | null;
   onMarkerClick?: (restaurantId: string) => void;
+  onCameraChanged?: (ev: MapCameraChangedEvent) => void;
 }
 
 export function RestaurantMap({
@@ -20,6 +26,7 @@ export function RestaurantMap({
   zoom = 10,
   selectedRestaurantId = null,
   onMarkerClick,
+  onCameraChanged,
 }: RestaurantMapProps) {
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const { coords, getLocation } = useLocation();
@@ -50,8 +57,9 @@ export function RestaurantMap({
     <APIProvider apiKey={key}>
       <div className="relative h-screen w-full">
         <Map
-          defaultCenter={center}
-          defaultZoom={zoom}
+          center={center}
+          zoom={zoom}
+          onCameraChanged={onCameraChanged}
           mapId="restaurant-map"
           className="h-full w-full"
           gestureHandling="greedy"
