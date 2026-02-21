@@ -11,7 +11,7 @@ const INSTAGRAM_POST_RE =
 /** Full URL match for normalization: capture base URL without query. */
 const INSTAGRAM_URL_RE = new RegExp(
   `(https?://(?:www\\.)?${INSTAGRAM_POST_RE.source})(?:\\?[^#\\s]*)?`,
-  "i"
+  "i",
 );
 
 export function isInstagramUrl(url: string): boolean {
@@ -54,7 +54,7 @@ const X_IG_APP_ID = "936619743392459";
  * No Python or official API required.
  */
 export async function getInstagramCaption(
-  instagramUrl: string
+  instagramUrl: string,
 ): Promise<InstagramCaptionResult> {
   const normalized = normalizeInstagramUrl(instagramUrl);
   const url = normalized ?? instagramUrl.trim();
@@ -73,13 +73,14 @@ export async function getInstagramCaption(
     const response = await fetch("https://www.instagram.com/api/graphql", {
       method: "POST",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "X-IG-App-ID": X_IG_APP_ID,
         "X-FB-LSD": "AVqbxe3J_YA",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "*/*",
-        "Origin": "https://www.instagram.com",
-        "Referer": "https://www.instagram.com/",
+        Accept: "*/*",
+        Origin: "https://www.instagram.com",
+        Referer: "https://www.instagram.com/",
         "Sec-Fetch-Site": "same-origin",
         "Sec-Fetch-Mode": "cors",
       },
@@ -106,7 +107,8 @@ export async function getInstagramCaption(
     };
 
     const media = json?.data?.xdt_shortcode_media;
-    const caption = media?.edge_media_to_caption?.edges?.[0]?.node?.text ?? null;
+    const caption =
+      media?.edge_media_to_caption?.edges?.[0]?.node?.text ?? null;
     const location = media?.location?.name ?? null;
 
     return { caption, location, shortcode };
