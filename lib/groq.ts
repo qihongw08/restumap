@@ -52,6 +52,20 @@ Then output the result in the exact JSON structure below.
 
 ${EXTRACT_JSON_SCHEMA}`;
 
+/** Direct place lookup: given name + address/region text, enrich full restaurant schema via web search. */
+const DIRECT_PLACE_LOOKUP_SYSTEM = `You are given a restaurant name and an optional address/region hint.
+Use web search to find this exact place and return:
+- opening hours weekday text
+- cuisine types
+- popular dishes
+- price range
+- ambiance tags
+
+Use the provided address/region hint to disambiguate similarly named places.
+Output the result in the exact JSON structure below.
+
+${EXTRACT_JSON_SCHEMA}`;
+
 export interface ExtractedRestaurant {
   name: string;
   address: string | null;
@@ -162,4 +176,19 @@ export async function extractRestaurantFromXiaohongshu(
     "web_search",
   );
   return parseExtractionResult(step2Content);
+}
+
+export async function extractRestaurantFromPlace(
+  name: string,
+  addressOrRegion?: string | null,
+): Promise<ExtractedRestaurant> {
+  const input = addressOrRegion?.trim()
+    ? `Restaurant name: ${name}\nAddress or region hint: ${addressOrRegion.trim()}`
+    : `Restaurant name: ${name}`;
+  const content = await compoundMini(
+    DIRECT_PLACE_LOOKUP_SYSTEM,
+    input,
+    "web_search",
+  );
+  return parseExtractionResult(content);
 }

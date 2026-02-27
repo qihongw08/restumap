@@ -72,6 +72,11 @@ export async function POST(request: NextRequest) {
         formattedAddress: body.formattedAddress ?? null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
+        googlePlaceId: body.googlePlaceId ?? null,
+        photoReferences: Array.isArray(body.photoReferences)
+          ? body.photoReferences
+          : [],
+        openingHoursWeekdayText: body.openingHoursWeekdayText ?? [],
         cuisineTypes: body.cuisineTypes ?? [],
         popularDishes: body.popularDishes ?? [],
         priceRange: body.priceRange ?? null,

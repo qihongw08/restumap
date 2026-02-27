@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Nav } from '@/components/shared/nav';
 import { Loader2 } from 'lucide-react';
@@ -9,15 +10,12 @@ function GroupJoinContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const hasToken = Boolean(token);
   const [status, setStatus] = useState<'checking' | 'joining' | 'done' | 'error'>('checking');
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('Missing invite token');
-      return;
-    }
+    if (!token) return;
     let cancelled = false;
     (async () => {
       try {
@@ -64,15 +62,17 @@ function GroupJoinContent() {
               {status === 'checking' ? 'Checking invite…' : 'Joining group…'}
             </p>
           </div>
-        ) : status === 'error' ? (
+        ) : status === 'error' || !hasToken ? (
           <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 p-6">
-            <p className="font-bold text-destructive">{message}</p>
-            <a
+            <p className="font-bold text-destructive">
+              {hasToken ? message : 'Missing invite token'}
+            </p>
+            <Link
               href="/groups"
               className="mt-4 inline-block text-sm font-bold text-primary hover:underline"
             >
               ← Back to groups
-            </a>
+            </Link>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-4">

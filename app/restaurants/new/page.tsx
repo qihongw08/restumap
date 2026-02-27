@@ -1,33 +1,27 @@
 import Link from "next/link";
 import { Header } from "@/components/shared/header";
 import { Nav } from "@/components/shared/nav";
-import { RestaurantForm } from "@/components/restaurants/restaurant-form";
-import { Card, CardContent } from "@/components/ui/card";
+import { NewRestaurantContent } from "@/app/restaurants/new/new-restaurant-content";
 
 export default function NewRestaurantPage() {
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-background pb-20">
       <Header />
-      <main className="mx-auto max-w-lg px-4 py-6">
+      <main className="mx-auto max-w-lg px-6 pt-40 pb-6">
         <Link
           href="/restaurants"
-          className="mb-4 inline-block text-sm font-medium text-gray-600 hover:text-gray-900"
+          className="mb-6 inline-flex items-center gap-1 text-sm font-bold text-muted-foreground hover:text-foreground"
         >
           ← Back to list
         </Link>
-        <h1 className="mb-4 text-xl font-bold text-gray-900">Add restaurant</h1>
-        <Card>
-          <CardContent className="p-4">
-            <RestaurantForm />
-          </CardContent>
-        </Card>
-        <p className="mt-3 text-center text-sm text-gray-500">
-          Or{" "}
-          <Link href="/import" className="text-[#FF6B6B] underline">
-            import from a link or caption
-          </Link>
-          .
+        <h1 className="mb-4 text-2xl font-black italic tracking-tighter text-foreground uppercase">
+          Add restaurant
+        </h1>
+        <p className="mb-6 text-sm font-medium text-muted-foreground">
+          Search a restaurant on Google, choose the right match, and save it to
+          your list.
         </p>
+        <NewRestaurantContent />
       </main>
       <Nav />
     </div>
