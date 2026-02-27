@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Nav } from "@/components/shared/nav";
 import { RestaurantList } from "@/components/restaurants/restaurant-list";
 import { DashboardHeader } from "@/components/home/dashboard-header";
 import { getCurrentUser } from "@/lib/auth";
 import { getDbUser } from "@/lib/sync-user";
-import Link from "next/link";
-import { Plus, Download } from "lucide-react";
+import { ImportButtons } from "@/components/home/import-buttons";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -20,20 +20,7 @@ export default async function Home() {
         <div className="mb-10 space-y-6">
           <DashboardHeader user={dbUser} isLoggedIn />
 
-          <div className="flex gap-3">
-            <Link
-              href="/restaurants/new"
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-3 text-xs font-black uppercase tracking-widest text-primary-foreground shadow-lg transition-transform active:scale-95"
-            >
-              <Plus className="h-4 w-4" /> Add New
-            </Link>
-            <Link
-              href="/import"
-              className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-muted px-4 py-3 text-xs font-black uppercase tracking-widest text-foreground shadow-sm transition-transform active:scale-95"
-            >
-              <Download className="h-4 w-4" /> Import
-            </Link>
-          </div>
+          <ImportButtons />
         </div>
 
         <section className="space-y-4">

@@ -12,17 +12,48 @@ export default async function MapPage({
     status?: string;
     priceRange?: string;
     restaurant?: string;
+    groupId?: string;
   }>;
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const params = await searchParams;
+  const groupId =
+    typeof params.groupId === "string" && params.groupId.trim()
+      ? params.groupId.trim()
+      : null;
+
+  const memberships = await prisma.groupMember.findMany({
+    where: { userId: user.id },
+    include: { group: { select: { id: true, name: true } } },
+  });
+  const groupOptions = memberships
+    .map((m) => m.group)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (groupId) {
+    const membership = await prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId: user.id } },
+      include: { group: { select: { id: true, name: true } } },
+    });
+    if (!membership) redirect("/groups");
+  }
+
   const userRestaurants = await prisma.userRestaurant.findMany({
     where: {
       userId: user.id,
       isBlacklisted: false,
       ...(params.status ? { status: params.status as RestaurantStatus } : {}),
+      ...(groupId
+        ? {
+            restaurant: {
+              groupRestaurants: {
+                some: { groupId },
+              },
+            },
+          }
+        : {}),
     },
     include: {
       restaurant: {
@@ -55,6 +86,8 @@ export default async function MapPage({
         <MapView
           restaurants={restaurants}
           highlightRestaurantId={params.restaurant ?? null}
+          selectedGroupId={groupId}
+          groupOptions={groupOptions}
         />
       </main>
       <Nav />

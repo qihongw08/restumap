@@ -20,6 +20,7 @@ import {
   Sparkles,
   Calendar,
   ImageIcon,
+  Map,
 } from "lucide-react";
 import { format } from "date-fns";
 import { calculatePFRatio, formatPFRatio } from "@/lib/utils";
@@ -324,14 +325,23 @@ export default function GroupDetailPage({
               <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
                 Restaurants
               </h2>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setAddRestaurantOpen(true)}
-                className="gap-2"
-              >
-                <Plus className="h-4 w-4" /> Add
-              </Button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/map?groupId=${groupId}`}
+                  className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-black uppercase tracking-widest text-foreground"
+                >
+                  <Map className="h-3.5 w-3.5" />
+                  View on map
+                </Link>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setAddRestaurantOpen(true)}
+                  className="gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Add
+                </Button>
+              </div>
             </div>
 
             {group.groupRestaurants.length === 0 ? (

@@ -96,7 +96,7 @@ export function RestaurantMap({
               </div>
             </AdvancedMarker>
           ))}
-          <div className="absolute top-36 right-6">
+          <div className="absolute right-3 top-10 z-[60]">
             <LocationButton />
           </div>
         </Map>

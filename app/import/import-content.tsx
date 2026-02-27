@@ -43,7 +43,16 @@ function extractUrl(text: string): string | null {
   return match[0].replace(/[.,;:!?)]+$/, "");
 }
 
-export function ImportContent() {
+type ImportContentProps = {
+  variant?: "page" | "modal";
+  onClose?: () => void;
+};
+
+export function ImportContent({
+  variant = "page",
+  onClose,
+}: ImportContentProps) {
+  const isModal = variant === "modal";
   const searchParams = useSearchParams();
   const [text, setText] = useState("");
   const [extracted, setExtracted] = useState<Extracted | null>(null);
@@ -169,7 +178,12 @@ export function ImportContent() {
       setPlacesCandidates(null);
       setSelectedPlaceId(null);
       setText("");
-      window.location.href = "/restaurants";
+      if (isModal) {
+        onClose?.();
+        window.location.reload();
+      } else {
+        window.location.href = "/restaurants";
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save");
     } finally {
@@ -178,19 +192,27 @@ export function ImportContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <Header />
-      <main className="mx-auto max-w-lg px-6 pt-40 pb-6">
-        <h1 className="mb-4 text-2xl font-black italic tracking-tighter text-foreground uppercase">
-          Import restaurant
-        </h1>
+    <div className={isModal ? "w-full" : "min-h-screen bg-background pb-20"}>
+      {!isModal && <Header />}
+      <main
+        className={
+          isModal
+            ? "mx-auto max-w-lg max-h-[60vh] overflow-y-auto pr-1"
+            : "mx-auto max-w-lg px-6 pt-40 pb-6"
+        }
+      >
+        {!isModal && (
+          <h1 className="mb-4 text-2xl font-black italic tracking-tighter text-foreground uppercase">
+            Import restaurant
+          </h1>
+        )}
         <p className="mb-6 text-sm font-medium text-muted-foreground">
           Paste a link from Instagram, TikTok, or RedNote. We&apos;ll extract
           the restaurant name and details, then find it on Google to save the
           right place.
         </p>
 
-        <Card className="border-2 border-primary/20 shadow-xl overflow-hidden rounded-3xl">
+        <Card className="border-2 border-primary/50 overflow-hidden shadow-md rounded-3xl">
           <CardContent className="p-6 space-y-4 bg-card">
             <textarea
               className="w-full rounded-2xl border-2 border-muted bg-background px-4 py-3 text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none focus:ring-0 transition-all font-medium"
@@ -322,7 +344,7 @@ export function ImportContent() {
                 <Button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="w-full py-6 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform bg-primary text-primary-foreground"
+                  className="w-full mb-4 py-4 rounded-2xl text-sm font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform bg-primary text-primary-foreground"
                 >
                   {isSaving ? "Saving…" : "Save restaurant"}
                 </Button>
@@ -331,7 +353,7 @@ export function ImportContent() {
           </>
         )}
       </main>
-      <Nav />
+      {!isModal && <Nav />}
     </div>
   );
 }

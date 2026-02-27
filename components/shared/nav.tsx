@@ -3,13 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { MapPin, List, Share2, Users } from "lucide-react";
+import { MapPin, List, Users } from "lucide-react";
 
 const links = [
   { href: "/", label: "Home", icon: List },
   { href: "/map", label: "Map", icon: MapPin },
   { href: "/groups", label: "Groups", icon: Users },
-  { href: "/import", label: "Import", icon: Share2 },
 ];
 
 export function Nav() {
