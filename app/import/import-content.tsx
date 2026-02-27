@@ -124,17 +124,17 @@ export function ImportContent() {
       const candidates = placesCandidates ?? [];
       const selectedCandidate =
         selectedPlaceId && candidates.length > 0
-          ? candidates.find((c) => c.placeId === selectedPlaceId) ??
-            (candidates.length === 1 ? candidates[0] : null)
+          ? (candidates.find((c) => c.placeId === selectedPlaceId) ??
+            (candidates.length === 1 ? candidates[0] : null))
           : null;
 
       const payload: Record<string, unknown> = {
         sourceUrl,
         placeId: selectedPlaceId ?? undefined,
         extracted: {
-          name: extracted.name,
-          address: extracted.address,
-          formattedAddress: extracted.formattedAddress ?? extracted.address,
+          name: selectedCandidate?.name,
+          address: selectedCandidate?.formattedAddress ?? extracted.address,
+          formattedAddress: selectedCandidate?.formattedAddress,
           openingHoursWeekdayText: extracted.openingHoursWeekdayText ?? [],
           cuisineTypes: extracted.cuisineTypes ?? [],
           popularDishes: extracted.popularDishes ?? [],
@@ -143,15 +143,20 @@ export function ImportContent() {
         },
       };
       if (selectedCandidate) {
+        if (selectedCandidate.name) payload.name = selectedCandidate.name;
+        if (selectedCandidate.formattedAddress) {
+          payload.formattedAddress = selectedCandidate.formattedAddress;
+          payload.address = selectedCandidate.formattedAddress;
+        }
         if (typeof selectedCandidate.latitude === "number")
           payload.latitude = selectedCandidate.latitude;
         if (typeof selectedCandidate.longitude === "number")
           payload.longitude = selectedCandidate.longitude;
-        payload.photoReferences = Array.isArray(selectedCandidate.photoReferences)
+        payload.photoReferences = Array.isArray(
+          selectedCandidate.photoReferences,
+        )
           ? selectedCandidate.photoReferences
           : [];
-        if (selectedCandidate.formattedAddress)
-          payload.formattedAddress = selectedCandidate.formattedAddress;
       }
 
       const res = await fetch("/api/import", {

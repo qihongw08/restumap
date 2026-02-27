@@ -8,6 +8,7 @@ const EXTRACT_JSON_SCHEMA = `
 Output requirements:
 - Output valid JSON only
 - No markdown, no explanation
+- Price range should ONLY come from Yelp. Infer price range and if Yelp does not provide a price range.
 
 Exact JSON structure:
 {

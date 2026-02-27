@@ -18,8 +18,14 @@ export async function POST(request: NextRequest) {
     const placeId = body.placeId ?? null;
     const extracted = body.extracted ?? {};
 
-    const name = extracted.name ?? "Unknown";
-    const address = extracted.address ?? null;
+    const name =
+      (typeof body.name === "string" && body.name.trim()
+        ? body.name.trim()
+        : null) ?? extracted.name ?? "Unknown";
+    const address =
+      (typeof body.address === "string" && body.address.trim()
+        ? body.address.trim()
+        : null) ?? extracted.address ?? null;
     const rawCaption =
       typeof extracted.rawCaption === "string" ? extracted.rawCaption : null;
     const sourcePlatform =
@@ -67,31 +73,46 @@ export async function POST(request: NextRequest) {
 
       if (existing) {
         restaurantId = existing.id;
+
         const needsCoords =
           latitude != null &&
           longitude != null &&
           (existing.latitude == null || existing.longitude == null);
+
+        const needsPhotos =
+          photoReferences.length > 0 &&
+          (existing.photoReferences?.length ?? 0) === 0;
+
+        const needsOpeningHours =
+          openingHoursWeekdayText.length > 0 &&
+          (existing.openingHoursWeekdayText?.length ?? 0) === 0;
+
+        const needsName = !!name && name !== existing.name;
+        const needsAddress = address != null && address !== existing.address;
+        const needsFormattedAddress =
+          formattedAddress != null &&
+          formattedAddress !== existing.formattedAddress;
+
         const needsUpdate =
-          (photoReferences.length > 0 &&
-            (existing.photoReferences?.length ?? 0) === 0) ||
-          (openingHoursWeekdayText.length > 0 &&
-            (existing.openingHoursWeekdayText?.length ?? 0) === 0) ||
-          needsCoords;
+          needsPhotos ||
+          needsOpeningHours ||
+          needsCoords ||
+          needsName ||
+          needsAddress ||
+          needsFormattedAddress;
+
         if (needsUpdate) {
           await prisma.restaurant.update({
             where: { id: existing.id },
             data: {
-              ...(photoReferences.length > 0 &&
-              (existing.photoReferences?.length ?? 0) === 0
-                ? { photoReferences }
-                : {}),
-              ...(openingHoursWeekdayText.length > 0 &&
-              (existing.openingHoursWeekdayText?.length ?? 0) === 0
-                ? { openingHoursWeekdayText }
-                : {}),
+              ...(needsPhotos ? { photoReferences } : {}),
+              ...(needsOpeningHours ? { openingHoursWeekdayText } : {}),
               ...(needsCoords && latitude != null && longitude != null
                 ? { latitude, longitude }
                 : {}),
+              ...(needsName ? { name } : {}),
+              ...(needsAddress ? { address } : {}),
+              ...(needsFormattedAddress ? { formattedAddress } : {}),
             },
           });
         }
